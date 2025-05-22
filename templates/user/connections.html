@@ -12,7 +12,7 @@
             {% else %}
                 <span class="badge bg-success">REAL VIEW</span>
             {% endif %}
-            Connect with other users to create shared ledger entries
+            Connect with other users to create shared ledger entries and chat
         </p>
     </div>
 </div>
@@ -52,7 +52,7 @@
             <div class="card-footer">
                 <div class="alert alert-info mb-0 p-2 small">
                     <i class="fas fa-info-circle me-1"></i>
-                    To connect with another user, you must know their exact username.
+                    To connect with another user, you must know their exact username or select from available users below.
                 </div>
             </div>
         </div>
@@ -88,11 +88,19 @@
                                         <td>{{ connected_user.username }}</td>
                                         <td>{{ connection.date_created.strftime('%Y-%m-%d') }}</td>
                                         <td>
-                                            <a href="{{ url_for('handle_connection', connection_id=connection.id, action='remove') }}"
-                                              class="btn btn-sm btn-outline-danger confirm-action"
-                                              onclick="return confirmAction('Are you sure you want to remove this connection?')">
-                                                <i class="fas fa-unlink me-1"></i>Remove
-                                            </a>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-outline-info open-chat" 
+                                                        data-bs-toggle="modal" data-bs-target="#chatModal"
+                                                        data-username="{{ connected_user.username }}" 
+                                                        data-userid="{{ connected_user.id }}">
+                                                    <i class="fas fa-comments me-1"></i>Chat
+                                                </button>
+                                                <a href="{{ url_for('handle_connection', connection_id=connection.id, action='remove') }}"
+                                                  class="btn btn-sm btn-outline-danger confirm-action"
+                                                  onclick="return confirmAction('Are you sure you want to remove this connection?')">
+                                                    <i class="fas fa-unlink me-1"></i>Remove
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -104,7 +112,7 @@
                         <h4 class="alert-heading">No Connections</h4>
                         <p>You don't have any active connections with other users.</p>
                         <hr>
-                        <p class="mb-0">Use the form on the left to request a new connection.</p>
+                        <p class="mb-0">Use the form on the left to request a new connection or choose from available users below.</p>
                     </div>
                 {% endif %}
             </div>
@@ -206,10 +214,50 @@
     </div>
 </div>
 
+<!-- Available Users -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-friends me-2"></i>Available Users
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if available_users %}
+                    <div class="row">
+                        {% for user in available_users %}
+                            <div class="col-md-4 col-lg-3 mb-3">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">{{ user.username }}</h5>
+                                        <p class="text-muted small">User ID: {{ user.id }}</p>
+                                        <form method="POST" action="{{ url_for('request_connection') }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="username" value="{{ user.username }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                                                <i class="fas fa-user-plus me-1"></i>Connect
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p class="mb-0">There are no other available users to connect with at this time.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card mb-4">
     <div class="card-header bg-secondary text-white">
         <h5 class="mb-0">
-            <i class="fas fa-info-circle me-2"></i>About Connections
+            <i class="fas fa-info-circle me-2"></i>About Connections & Chat
         </h5>
     </div>
     <div class="card-body">
@@ -220,6 +268,7 @@
                     <li>Create ledger entries that are linked to other users</li>
                     <li>Keep track of money owed between connected users</li>
                     <li>When you create a transaction with a connected user, a corresponding entry is created in their ledger</li>
+                    <li>Chat with your connections to discuss financial matters</li>
                 </ul>
             </div>
             <div class="col-md-6">
@@ -229,9 +278,92 @@
                     <li>Only connected users can create linked transactions</li>
                     <li>Removing a connection does not delete existing transactions</li>
                     <li>Dual password system applies - connections are specific to real/dummy data views</li>
+                    <li>Chat history is only accessible to the connected users</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Chat Modal -->
+<div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="chatModalLabel">
+                    <i class="fas fa-comments me-2"></i>Chat with <span id="chatUsername"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-container" style="height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-comments fa-2x mb-3"></i>
+                            <p>Chat feature coming soon!</p>
+                            <p class="small">This is a placeholder for the chat functionality.</p>
+                        </div>
+                    </div>
+                </div>
+                <form id="chatForm">
+                    <div class="input-group">
+                        <input type="text" id="messageInput" class="form-control" placeholder="Type your message...">
+                        <button class="btn btn-primary" type="submit" id="sendMessage">
+                            <i class="fas fa-paper-plane me-1"></i>Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle opening chat modal
+        const chatButtons = document.querySelectorAll('.open-chat');
+        chatButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const username = this.getAttribute('data-username');
+                const userId = this.getAttribute('data-userid');
+                
+                document.getElementById('chatUsername').textContent = username;
+                
+                // This would typically load chat history from the server
+                // For now, just display a placeholder message
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-comments fa-2x mb-3"></i>
+                        <p>Chat with ${username}</p>
+                        <p class="small">This is a placeholder for the chat functionality.</p>
+                    </div>
+                `;
+            });
+        });
+        
+        // Handle chat form submission
+        const chatForm = document.getElementById('chatForm');
+        if (chatForm) {
+            chatForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+                
+                if (message) {
+                    // This would typically send the message to the server
+                    // For now, just display a notification
+                    alert('Message sending will be implemented in the next phase.');
+                    messageInput.value = '';
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

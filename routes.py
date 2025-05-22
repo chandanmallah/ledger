@@ -379,6 +379,33 @@ def manage_connections():
         status='pending'
     ).all()
     
+    # Get all available users that are not the current user and not already connected or requested
+    connected_user_ids = []
+    
+    # Add IDs from accepted connections
+    for conn in accepted_connections:
+        if conn.user_id == current_user.id:
+            connected_user_ids.append(conn.connected_user_id)
+        else:
+            connected_user_ids.append(conn.user_id)
+    
+    # Add IDs from sent requests
+    for req in sent_requests:
+        connected_user_ids.append(req.connected_user_id)
+    
+    # Add IDs from received requests
+    for req in received_requests:
+        connected_user_ids.append(req.user_id)
+    
+    # Query available users (excluding already connected/requested and self)
+    available_users = User.query.filter(
+        and_(
+            User.id != current_user.id,
+            ~User.id.in_(connected_user_ids),
+            User.is_active == True
+        )
+    ).all()
+    
     form = ConnectionRequestForm()
     
     return render_template('user/connections.html',
@@ -386,6 +413,7 @@ def manage_connections():
                           accepted_connections=accepted_connections,
                           sent_requests=sent_requests,
                           received_requests=received_requests,
+                          available_users=available_users,
                           form=form,
                           is_dummy=is_dummy)
 
