@@ -208,17 +208,9 @@
                         </div>
                         {% endif %}
                         
-                        <div class="mb-3 form-check">
-                            {{ form.is_debit(class="form-check-input") }}
-                            <label class="form-check-label" for="{{ form.is_debit.id }}">
-                                Money going out (expense)
-                            </label>
-                        </div>
-                        
-                        <div class="alert alert-info small">
-                            <i class="fas fa-info-circle me-1"></i>
-                            <strong>Debit (checked):</strong> Money leaving your account<br>
-                            <strong>Credit (unchecked):</strong> Money coming into your account
+                        <div class="mb-3">
+                            <label for="{{ form.transaction_type.id }}" class="form-label">Transaction Type</label>
+                            {{ form.transaction_type(class="form-select") }}
                         </div>
                         
                         <div class="d-grid">

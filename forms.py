@@ -45,7 +45,10 @@ class LedgerForm(FlaskForm):
 class LedgerEntryForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=200)])
     amount = FloatField('Amount', validators=[DataRequired()])
-    is_debit = BooleanField('Is Debit')  # True for debit (money out), False for credit (money in)
+    transaction_type = SelectField('Transaction Type', choices=[
+        ('debit', 'Debit (money leaving your account)'),
+        ('credit', 'Credit (money coming into your account)')
+    ], default='debit')
     connected_user = SelectField('Connected User', validators=[DataRequired()], coerce=int)
     ledger_id = HiddenField('Ledger ID')
     submit = SubmitField('Add Entry')

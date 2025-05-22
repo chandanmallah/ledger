@@ -295,10 +295,11 @@ def add_ledger_entry(ledger_id):
     # Handle based on view mode (dummy or real)
     if is_dummy:
         # In dummy mode, allow any entry without validation or connections
+        is_debit = form.transaction_type.data == 'debit'
         entry = LedgerEntry(
             description=form.description.data,
             amount=form.amount.data,
-            is_debit=form.is_debit.data,
+            is_debit=is_debit,
             ledger_id=ledger_id,
             connected_user_id=None  # No connected user in dummy mode
         )
@@ -327,10 +328,11 @@ def add_ledger_entry(ledger_id):
                 return redirect(url_for('view_ledger', ledger_id=ledger_id))
             
             # Create the entry for the current user
+            is_debit = form.transaction_type.data == 'debit'
             entry = LedgerEntry(
                 description=form.description.data,
                 amount=form.amount.data,
-                is_debit=form.is_debit.data,
+                is_debit=is_debit,
                 ledger_id=ledger_id,
                 connected_user_id=connected_user_id if connected_user_id != 0 else None
             )
@@ -351,7 +353,7 @@ def add_ledger_entry(ledger_id):
                     mirror_entry = LedgerEntry(
                         description=f"From {current_user.username}: {form.description.data}",
                         amount=form.amount.data,
-                        is_debit=not form.is_debit.data,  # Opposite of current entry
+                        is_debit=not is_debit,  # Opposite of current entry
                         ledger_id=connected_user_ledger.id,
                         connected_user_id=current_user.id,
                         connected_entry_id=entry.id
