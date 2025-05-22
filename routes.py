@@ -187,11 +187,14 @@ def user_dashboard():
             else:
                 total_balance += entry.amount
     
-    # Get connection requests
-    pending_requests = Connection.query.filter_by(
-        connected_user_id=current_user.id, 
-        status='pending'
-    ).all()
+    # Get connection requests only in real mode
+    if is_dummy:
+        pending_requests = []  # No connection requests in dummy mode
+    else:
+        pending_requests = Connection.query.filter_by(
+            connected_user_id=current_user.id, 
+            status='pending'
+        ).all()
     
     # Get recent transactions
     recent_transactions = LedgerEntry.query.join(Ledger).filter(

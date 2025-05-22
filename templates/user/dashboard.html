@@ -58,7 +58,8 @@
         </div>
     </div>
     
-    <!-- Connection Requests -->
+    {% if not is_dummy %}
+    <!-- Connection Requests (hidden in dummy mode) -->
     <div class="col-md-4">
         <div class="card dashboard-card mb-4">
             <div class="card-body text-center">
@@ -79,6 +80,21 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Dummy mode - no connections shown -->
+    <div class="col-md-4">
+        <div class="card dashboard-card mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-shield-alt me-2"></i>Dummy Data Mode
+                </h5>
+                <p class="card-text mt-3">
+                    You're operating in dummy data mode. You can freely create any ledger entries without connection constraints.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Charts and Recent Transactions -->
@@ -154,7 +170,7 @@
                     <!-- Placeholder for chart - In a real app, this would be populated with actual data -->
                     <canvas id="balanceTrendChart" 
                            data-balance="[1000, 1250, 900, 1400, 1600, 1800, 1900]"
-                           data-labels="['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']"></canvas>
+                           data-labels='["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]'></canvas>
                 </div>
             </div>
         </div>
