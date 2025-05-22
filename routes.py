@@ -397,12 +397,13 @@ def manage_connections():
     for req in received_requests:
         connected_user_ids.append(req.user_id)
     
-    # Query available users (excluding already connected/requested and self)
+    # Query available users (excluding already connected/requested, self, and admin users)
     available_users = User.query.filter(
         and_(
             User.id != current_user.id,
             ~User.id.in_(connected_user_ids),
-            User.is_active == True
+            User.is_active == True,
+            User.is_admin == False  # Exclude admin accounts
         )
     ).all()
     
@@ -433,6 +434,11 @@ def request_connection():
         
         if requested_user.id == current_user.id:
             flash('You cannot connect with yourself.', 'danger')
+            return redirect(url_for('manage_connections'))
+            
+        # Don't allow connections to admin users for security
+        if requested_user.is_admin:
+            flash('This user is not available for connections.', 'danger')
             return redirect(url_for('manage_connections'))
         
         # Check if connection already exists
