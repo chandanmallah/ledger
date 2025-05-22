@@ -45,7 +45,7 @@ with app.app_context():
     db.create_all()
     
     # Create admin user if not exists
-    from models import User
+    from models import User, Ledger
     from werkzeug.security import generate_password_hash
     
     admin = User.query.filter_by(username='admin').first()
@@ -60,4 +60,23 @@ with app.app_context():
             is_active=True
         )
         db.session.add(admin)
+        db.session.flush()  # Flush to get the admin ID
+        
+        # Create default ledgers for admin
+        real_ledger = Ledger(
+            name="Personal Account",
+            description="Default personal account",
+            is_dummy=False,
+            user_id=admin.id
+        )
+        
+        dummy_ledger = Ledger(
+            name="Personal Account",
+            description="Default personal account",
+            is_dummy=True,
+            user_id=admin.id
+        )
+        
+        db.session.add(real_ledger)
+        db.session.add(dummy_ledger)
         db.session.commit()
