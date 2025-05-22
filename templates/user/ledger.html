@@ -14,9 +14,9 @@
             </h2>
             <p class="lead">
                 {% if is_dummy %}
-                    <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+                    <span class="badge bg-dark"><i class="fas fa-moon"></i></span>
                 {% else %}
-                    <span class="badge bg-success">REAL VIEW</span>
+                    <span class="badge bg-light text-dark"><i class="fas fa-sun"></i></span>
                 {% endif %}
                 {{ ledger.description or "No description" }}
             </p>

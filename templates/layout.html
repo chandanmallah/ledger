@@ -17,13 +17,13 @@
 <body>
     {% if current_user.is_authenticated %}
         {% if current_user.using_dummy %}
-            <div class="data-view-indicator bg-warning text-dark">
-                <span id="dataViewText">DUMMY DATA VIEW</span>
+            <div class="data-view-indicator bg-dark">
+                <span id="dataViewText"><i class="fas fa-moon"></i></span>
                 <input type="hidden" id="dataViewStatus" value="true">
             </div>
         {% else %}
-            <div class="data-view-indicator bg-success">
-                <span id="dataViewText">REAL DATA VIEW</span>
+            <div class="data-view-indicator bg-light text-dark">
+                <span id="dataViewText"><i class="fas fa-sun"></i></span>
                 <input type="hidden" id="dataViewStatus" value="false">
             </div>
         {% endif %}

@@ -8,9 +8,9 @@
         </h2>
         <p class="lead">
             {% if is_dummy %}
-                <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+                <span class="badge bg-dark"><i class="fas fa-moon"></i></span>
             {% else %}
-                <span class="badge bg-success">REAL VIEW</span>
+                <span class="badge bg-light text-dark"><i class="fas fa-sun"></i></span>
             {% endif %}
             Welcome to your personal dashboard
         </p>
@@ -81,15 +81,16 @@
         </div>
     </div>
     {% else %}
-    <!-- Dummy mode - no connections shown -->
+    <!-- Dummy mode alternative card -->
     <div class="col-md-4">
         <div class="card dashboard-card mb-4">
             <div class="card-body text-center">
                 <h5 class="card-title">
-                    <i class="fas fa-shield-alt me-2"></i>Dummy Data Mode
+                    <i class="fas fa-shield-alt me-2"></i>Free Entry Mode
                 </h5>
                 <p class="card-text mt-3">
-                    You're operating in dummy data mode. You can freely create any ledger entries without connection constraints.
+                    <i class="fas fa-moon fa-2x mb-2"></i><br>
+                    Create any ledger entries you want without constraints
                 </p>
             </div>
         </div>
