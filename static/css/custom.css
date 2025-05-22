@@ -1,0 +1,100 @@
+/* Custom styles to supplement Bootstrap */
+
+/* Data view indicator */
+.data-view-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 5px;
+    text-align: center;
+    font-weight: bold;
+    z-index: 1050;
+}
+
+/* Dashboard cards */
+.dashboard-card {
+    transition: transform 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Transaction history table styles */
+.transaction-debit {
+    color: var(--bs-danger);
+}
+
+.transaction-credit {
+    color: var(--bs-success);
+}
+
+/* Ledger balance display */
+.balance-display {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.balance-display.positive {
+    color: var(--bs-success);
+}
+
+.balance-display.negative {
+    color: var(--bs-danger);
+}
+
+/* Connection status badges */
+.badge-pending {
+    background-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+.badge-accepted {
+    background-color: var(--bs-success);
+}
+
+.badge-rejected {
+    background-color: var(--bs-danger);
+}
+
+/* Form enhancements */
+.password-field-container {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Chart containers */
+.chart-container {
+    height: 300px;
+    margin-bottom: 1.5rem;
+}
+
+/* Navbar logout button */
+.navbar .btn-logout {
+    margin-left: 15px;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}

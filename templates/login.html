@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">
+                    <i class="fas fa-lock me-2"></i>Login
+                </h2>
+                
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id }}" class="form-label">
+                            <i class="fas fa-user me-2"></i>{{ form.username.label }}
+                        </label>
+                        {{ form.username(class="form-control", placeholder="Enter your username") }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">
+                                {% for error in form.username.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.password.id }}" class="form-label">
+                            <i class="fas fa-key me-2"></i>{{ form.password.label }}
+                        </label>
+                        <div class="password-field-container">
+                            {{ form.password(class="form-control", placeholder="Enter your password") }}
+                            <span class="toggle-password" data-target="#{{ form.password.id }}">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                        {% if form.password.errors %}
+                            <div class="text-danger">
+                                {% for error in form.password.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body p-3">
+                <h5 class="card-title">Important Security Information</h5>
+                <p class="card-text">This system uses a dual password security system:</p>
+                <ul>
+                    <li>Your <strong>real password</strong> provides access to your actual ledger data.</li>
+                    <li>Your <strong>dummy password</strong> displays decoy data to protect your privacy.</li>
+                </ul>
+                <p class="card-text text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    If you don't know your passwords, please contact an administrator.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

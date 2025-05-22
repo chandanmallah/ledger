@@ -1,0 +1,231 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-user-circle me-2"></i>Your Profile
+        </h2>
+        <p class="lead">
+            {% if is_dummy %}
+                <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+            {% else %}
+                <span class="badge bg-success">REAL VIEW</span>
+            {% endif %}
+            Manage your account information and passwords
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-edit me-2"></i>Update Profile
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('profile') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" value="{{ current_user.username }}" disabled>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Username cannot be changed
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.email.id }}" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>{{ form.email.label }}
+                                </label>
+                                {{ form.email(class="form-control") }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.email.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.current_password.id }}" class="form-label">
+                            <i class="fas fa-lock me-1"></i>{{ form.current_password.label }}
+                        </label>
+                        <div class="password-field-container">
+                            {{ form.current_password(class="form-control", placeholder="Enter your current password") }}
+                            <span class="toggle-password" data-target="#{{ form.current_password.id }}">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                        {% if form.current_password.errors %}
+                            <div class="text-danger">
+                                {% for error in form.current_password.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>Required to confirm any changes
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-info mb-4">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-key me-2"></i>Password Update
+                        </h5>
+                        <p>Leave password fields blank if you don't want to change them.</p>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-shield-alt me-1"></i>Real Password
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="{{ form.new_password.id }}" class="form-label">
+                                            {{ form.new_password.label }}
+                                        </label>
+                                        <div class="password-field-container">
+                                            {{ form.new_password(class="form-control", placeholder="Enter new real password") }}
+                                            <span class="toggle-password" data-target="#{{ form.new_password.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </span>
+                                        </div>
+                                        {% if form.new_password.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.new_password.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="{{ form.confirm_new_password.id }}" class="form-label">
+                                            {{ form.confirm_new_password.label }}
+                                        </label>
+                                        <div class="password-field-container">
+                                            {{ form.confirm_new_password(class="form-control", placeholder="Confirm new real password") }}
+                                            <span class="toggle-password" data-target="#{{ form.confirm_new_password.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </span>
+                                        </div>
+                                        {% if form.confirm_new_password.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.confirm_new_password.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-mask me-1"></i>Dummy Password
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="{{ form.new_dummy_password.id }}" class="form-label">
+                                            {{ form.new_dummy_password.label }}
+                                        </label>
+                                        <div class="password-field-container">
+                                            {{ form.new_dummy_password(class="form-control", placeholder="Enter new dummy password") }}
+                                            <span class="toggle-password" data-target="#{{ form.new_dummy_password.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </span>
+                                        </div>
+                                        {% if form.new_dummy_password.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.new_dummy_password.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="{{ form.confirm_new_dummy_password.id }}" class="form-label">
+                                            {{ form.confirm_new_dummy_password.label }}
+                                        </label>
+                                        <div class="password-field-container">
+                                            {{ form.confirm_new_dummy_password(class="form-control", placeholder="Confirm new dummy password") }}
+                                            <span class="toggle-password" data-target="#{{ form.confirm_new_dummy_password.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </span>
+                                        </div>
+                                        {% if form.confirm_new_dummy_password.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.confirm_new_dummy_password.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Important Security Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li>
+                        <strong>Dual Password System:</strong> This application uses a dual password system for enhanced security:
+                        <ul>
+                            <li><strong>Real Password:</strong> Provides access to your actual financial data</li>
+                            <li><strong>Dummy Password:</strong> Shows decoy data to protect your privacy when needed</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Password Security:</strong>
+                        <ul>
+                            <li>Choose strong, different passwords for both real and dummy access</li>
+                            <li>Never share your real password with anyone</li>
+                            <li>Use your dummy password when accessing the application in public or under duress</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Current Session:</strong> You are currently logged in with your 
+                        <strong>{% if is_dummy %}DUMMY{% else %}REAL{% endif %}</strong> password
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

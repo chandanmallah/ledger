@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-users-cog me-2"></i>Manage Users
+        </h2>
+        <p class="lead">
+            View and manage user accounts
+        </p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('create_user') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i>Create New User
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Created On</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.date_created.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        {% if user.is_active %}
+                                            <a href="{{ url_for('toggle_user', user_id=user.id) }}" 
+                                               class="btn btn-sm btn-outline-danger confirm-action"
+                                               onclick="return confirmAction('Are you sure you want to deactivate this user?')">
+                                                <i class="fas fa-user-slash"></i> Deactivate
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('toggle_user', user_id=user.id) }}" 
+                                               class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-user-check"></i> Activate
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading">No Users Found</h4>
+                <p>There are no regular users in the system yet.</p>
+                <hr>
+                <p class="mb-0">Click the "Create New User" button to add a user.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>User Management Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-user-plus me-2"></i>
+                        <strong>Creating Users:</strong> Only administrators can create user accounts
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-key me-2"></i>
+                        <strong>Dual Passwords:</strong> Each user has both real and dummy passwords
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-user-slash me-2"></i>
+                        <strong>Deactivating Users:</strong> Prevents users from logging in without deleting their data
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-user-check me-2"></i>
+                        <strong>Activating Users:</strong> Restores a deactivated user's access to the system
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Security Reminders
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-lock me-2"></i>
+                        <strong>Password Sharing:</strong> Always securely communicate passwords to new users
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-mask me-2"></i>
+                        <strong>Dummy Data:</strong> Remind users to keep their dual passwords different
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        <strong>Data Protection:</strong> Real data is completely separate from dummy data
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-user-secret me-2"></i>
+                        <strong>Privacy:</strong> Users should utilize the dummy password in public settings
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

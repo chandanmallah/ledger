@@ -1,0 +1,231 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        {% if action == "create" %}
+            <h2>
+                <i class="fas fa-plus-circle me-2"></i>Create New Ledger
+            </h2>
+            <p class="lead">Add a new ledger to track your transactions</p>
+        {% else %}
+            <h2>
+                <i class="fas fa-book me-2"></i>{{ ledger.name }}
+            </h2>
+            <p class="lead">
+                {% if is_dummy %}
+                    <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+                {% else %}
+                    <span class="badge bg-success">REAL VIEW</span>
+                {% endif %}
+                {{ ledger.description or "No description" }}
+            </p>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% if action == "create" %}
+    <!-- Create Ledger Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('create_ledger') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.name.id }}" class="form-label">
+                                <i class="fas fa-tag me-1"></i>{{ form.name.label }}
+                            </label>
+                            {{ form.name(class="form-control", placeholder="Enter a name for your ledger") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.name.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id }}" class="form-label">
+                                <i class="fas fa-align-left me-1"></i>{{ form.description.label }}
+                            </label>
+                            {{ form.description(class="form-control", rows=3, placeholder="Enter a description (optional)") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.description.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% else %}
+    <!-- Ledger Balance Card -->
+    <div class="row mb-4">
+        <div class="col-md-6 mx-auto">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Current Balance</h5>
+                    <p class="balance-display {% if balance >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ "{:,.2f}".format(balance) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Transaction List -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Transaction History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if ledger.entries %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th>Connected User</th>
+                                        <th>Amount</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in ledger.entries|sort(attribute='date', reverse=true) %}
+                                        <tr>
+                                            <td>{{ entry.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td>{{ entry.description }}</td>
+                                            <td>
+                                                {% if entry.connected_user %}
+                                                    <span class="badge bg-info">{{ entry.connected_user.username }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="{% if entry.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
+                                                {% if entry.is_debit %}-{% endif %}${{ "{:,.2f}".format(entry.amount) }}
+                                            </td>
+                                            <td>
+                                                {% if entry.is_debit %}
+                                                    <span class="badge bg-danger">Debit</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">Credit</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info" role="alert">
+                            <h4 class="alert-heading">No Transactions Yet</h4>
+                            <p>This ledger doesn't have any transactions.</p>
+                            <hr>
+                            <p class="mb-0">Use the form on the right to add your first transaction.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Transaction Form -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus me-2"></i>Add Transaction
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="ledgerEntryForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
+                        {{ form.hidden_tag() }}
+                        {{ form.ledger_id() }}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id }}" class="form-label">
+                                {{ form.description.label }}
+                            </label>
+                            {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.description.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.amount.id }}" class="form-label">
+                                {{ form.amount.label }}
+                            </label>
+                            {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
+                            {% if form.amount.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.amount.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.connected_user.id }}" class="form-label">
+                                {{ form.connected_user.label }}
+                            </label>
+                            {{ form.connected_user(class="form-control") }}
+                            {% if form.connected_user.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.connected_user.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ form.is_debit(class="form-check-input") }}
+                            <label class="form-check-label" for="{{ form.is_debit.id }}">
+                                Money going out (expense)
+                            </label>
+                        </div>
+                        
+                        <div class="alert alert-info small">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Debit (checked):</strong> Money leaving your account<br>
+                            <strong>Credit (unchecked):</strong> Money coming into your account
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

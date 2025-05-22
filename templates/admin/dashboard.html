@@ -1,0 +1,198 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+        </h2>
+        <p class="lead">Manage users and monitor system activity</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- System Stats -->
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-primary text-white h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-users me-2"></i>Users
+                </h5>
+                <p class="card-text display-4">{{ user_count }}</p>
+                <p class="card-text">
+                    <small>{{ active_users }} active users</small>
+                </p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <span>Registered Users</span>
+                <a href="{{ url_for('manage_users') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-info text-white h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-book me-2"></i>Ledgers
+                </h5>
+                <p class="card-text display-4">{{ ledger_count }}</p>
+                <p class="card-text">
+                    <small>Total ledgers in system</small>
+                </p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <span>Registered Ledgers</span>
+                <button class="btn btn-sm btn-light" disabled>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-success text-white h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-exchange-alt me-2"></i>Transactions
+                </h5>
+                <p class="card-text display-4">{{ transaction_count }}</p>
+                <p class="card-text">
+                    <small>Total transactions</small>
+                </p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <span>System Activity</span>
+                <button class="btn btn-sm btn-light" disabled>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card dashboard-card bg-secondary text-white h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-user-plus me-2"></i>New User
+                </h5>
+                <p class="card-text">
+                    <small>Create a new user account with dual passwords</small>
+                </p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <span>Add User</span>
+                <a href="{{ url_for('create_user') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Statistics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>
+                    <i class="fas fa-chart-pie me-2"></i>User Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="userStatsChart" 
+                            data-users="[{{ active_users }}, {{ user_count - active_users }}]"
+                            data-labels="['Active Users', 'Inactive Users']"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>
+                    <i class="fas fa-user-clock me-2"></i>Recently Added Users
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_users %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                    <tr>
+                                        <td>{{ user.username }}</td>
+                                        <td>{{ user.email }}</td>
+                                        <td>
+                                            {% if user.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ user.date_created.strftime('%Y-%m-%d') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center">No users have been added yet.</p>
+                {% endif %}
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ url_for('manage_users') }}" class="btn btn-sm btn-outline-primary">
+                    View All Users
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    <i class="fas fa-tasks me-2"></i>Admin Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="{{ url_for('create_user') }}" class="btn btn-outline-primary w-100 p-3">
+                            <i class="fas fa-user-plus fa-2x mb-2"></i>
+                            <div>Create New User</div>
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{{ url_for('manage_users') }}" class="btn btn-outline-info w-100 p-3">
+                            <i class="fas fa-users-cog fa-2x mb-2"></i>
+                            <div>Manage Users</div>
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary w-100 p-3">
+                            <i class="fas fa-user-shield fa-2x mb-2"></i>
+                            <div>Admin Profile</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

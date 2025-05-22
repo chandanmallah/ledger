@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto text-center">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="display-1 text-danger mb-3">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <h1 class="display-4 mb-4">Error {{ error_code }}</h1>
+                <p class="lead mb-4">{{ message }}</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i class="fas fa-home me-2"></i>Return to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

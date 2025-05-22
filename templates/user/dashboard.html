@@ -1,0 +1,215 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h2>
+        <p class="lead">
+            {% if is_dummy %}
+                <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+            {% else %}
+                <span class="badge bg-success">REAL VIEW</span>
+            {% endif %}
+            Welcome to your personal dashboard
+        </p>
+    </div>
+</div>
+
+<!-- Account Overview -->
+<div class="row mb-4">
+    <!-- Balance Card -->
+    <div class="col-md-4">
+        <div class="card dashboard-card mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-wallet me-2"></i>Total Balance
+                </h5>
+                <p class="display-4 mb-0 {% if total_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    ${{ "{:,.2f}".format(total_balance) }}
+                </p>
+                <p class="card-text text-muted">
+                    Across all ledgers
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ledgers Card -->
+    <div class="col-md-4">
+        <div class="card dashboard-card mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-book me-2"></i>Your Ledgers
+                </h5>
+                <p class="display-4 mb-0">
+                    {{ ledgers|length }}
+                </p>
+                <p class="card-text text-muted">
+                    Active ledger accounts
+                </p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('create_ledger') }}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="fas fa-plus me-1"></i>Create New Ledger
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Connection Requests -->
+    <div class="col-md-4">
+        <div class="card dashboard-card mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-bell me-2"></i>Connection Requests
+                </h5>
+                <p class="display-4 mb-0">
+                    {{ pending_requests|length }}
+                </p>
+                <p class="card-text text-muted">
+                    Pending connection requests
+                </p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('manage_connections') }}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="fas fa-link me-1"></i>Manage Connections
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Recent Transactions -->
+<div class="row">
+    <!-- Transaction History -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Transactions
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                    <tr>
+                                        <td>{{ transaction.date.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ transaction.description }}</td>
+                                        <td class="{% if transaction.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
+                                            {% if transaction.is_debit %}-{% endif %}${{ "{:,.2f}".format(transaction.amount) }}
+                                        </td>
+                                        <td>
+                                            {% if transaction.is_debit %}
+                                                <span class="badge bg-danger">Debit</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Credit</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center">No recent transactions found.</p>
+                {% endif %}
+            </div>
+            <div class="card-footer text-end">
+                {% if ledgers %}
+                    <a href="{{ url_for('view_ledger', ledger_id=ledgers[0].id) }}" class="btn btn-sm btn-outline-primary">
+                        View All Transactions
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('create_ledger') }}" class="btn btn-sm btn-outline-primary">
+                        Create a Ledger
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Financial Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <!-- Placeholder for chart - In a real app, this would be populated with actual data -->
+                    <canvas id="balanceTrendChart" 
+                           data-balance="[1000, 1250, 900, 1400, 1600, 1800, 1900]"
+                           data-labels="['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ledger List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-book me-2"></i>Your Ledgers
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if ledgers %}
+                    <div class="row">
+                        {% for ledger in ledgers %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card dashboard-card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ ledger.name }}</h5>
+                                        <p class="card-text">
+                                            {% if ledger.description %}
+                                                {{ ledger.description }}
+                                            {% else %}
+                                                <span class="text-muted">No description</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <a href="{{ url_for('view_ledger', ledger_id=ledger.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-eye me-1"></i>View Ledger
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <h4 class="alert-heading">No Ledgers Found</h4>
+                        <p>You don't have any ledgers yet.</p>
+                        <hr>
+                        <p class="mb-0">Click below to create your first ledger.</p>
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('create_ledger') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create New Ledger
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

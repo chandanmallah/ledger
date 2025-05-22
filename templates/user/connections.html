@@ -1,0 +1,237 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-link me-2"></i>Manage Connections
+        </h2>
+        <p class="lead">
+            {% if is_dummy %}
+                <span class="badge bg-warning text-dark">DUMMY VIEW</span>
+            {% else %}
+                <span class="badge bg-success">REAL VIEW</span>
+            {% endif %}
+            Connect with other users to create shared ledger entries
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Request New Connection Form -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>Request New Connection
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('request_connection') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id }}" class="form-label">
+                            {{ form.username.label }}
+                        </label>
+                        {{ form.username(class="form-control", placeholder="Enter username") }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">
+                                {% for error in form.username.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <div class="alert alert-info mb-0 p-2 small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    To connect with another user, you must know their exact username.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Accepted Connections -->
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Your Connections
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if accepted_connections %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Connected Since</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for connection in accepted_connections %}
+                                    {% if connection.user_id == current_user.id %}
+                                        {% set connected_user = connection.user_target %}
+                                    {% else %}
+                                        {% set connected_user = connection.user_source %}
+                                    {% endif %}
+                                    <tr>
+                                        <td>{{ connected_user.username }}</td>
+                                        <td>{{ connection.date_created.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('handle_connection', connection_id=connection.id, action='remove') }}"
+                                              class="btn btn-sm btn-outline-danger confirm-action"
+                                              onclick="return confirmAction('Are you sure you want to remove this connection?')">
+                                                <i class="fas fa-unlink me-1"></i>Remove
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <h4 class="alert-heading">No Connections</h4>
+                        <p>You don't have any active connections with other users.</p>
+                        <hr>
+                        <p class="mb-0">Use the form on the left to request a new connection.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Pending Sent Requests -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-paper-plane me-2"></i>Sent Requests
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if sent_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Requested On</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in sent_requests %}
+                                    <tr>
+                                        <td>{{ request.user_target.username }}</td>
+                                        <td>{{ request.date_created.strftime('%Y-%m-%d') }}</td>
+                                        <td><span class="badge badge-pending">Pending</span></td>
+                                        <td>
+                                            <a href="{{ url_for('handle_connection', connection_id=request.id, action='cancel') }}"
+                                              class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-times me-1"></i>Cancel
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">You haven't sent any pending connection requests.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Received Requests -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-inbox me-2"></i>Received Requests
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if received_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Requested On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in received_requests %}
+                                    <tr>
+                                        <td>{{ request.user_source.username }}</td>
+                                        <td>{{ request.date_created.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('handle_connection', connection_id=request.id, action='accept') }}"
+                                                  class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-check me-1"></i>Accept
+                                                </a>
+                                                <a href="{{ url_for('handle_connection', connection_id=request.id, action='reject') }}"
+                                                  class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-times me-1"></i>Reject
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">You don't have any pending connection requests from other users.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>About Connections
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-question-circle me-2"></i>Why Connect with Other Users?</h6>
+                <ul>
+                    <li>Create ledger entries that are linked to other users</li>
+                    <li>Keep track of money owed between connected users</li>
+                    <li>When you create a transaction with a connected user, a corresponding entry is created in their ledger</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-shield-alt me-2"></i>Connection Security</h6>
+                <ul>
+                    <li>Connections must be mutually accepted</li>
+                    <li>Only connected users can create linked transactions</li>
+                    <li>Removing a connection does not delete existing transactions</li>
+                    <li>Dual password system applies - connections are specific to real/dummy data views</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
