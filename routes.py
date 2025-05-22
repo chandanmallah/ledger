@@ -116,6 +116,7 @@ def create_user():
             is_admin=False
         )
         db.session.add(new_user)
+        db.session.flush()  # Flush to get the user ID
         
         # Create default dummy ledger for the new user
         dummy_ledger = Ledger(
