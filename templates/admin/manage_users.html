@@ -60,6 +60,11 @@
                                                 <i class="fas fa-user-check"></i> Activate
                                             </a>
                                         {% endif %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#changePasswordModal{{ user.id }}">
+                                            <i class="fas fa-key"></i> Change Password
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -77,6 +82,89 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Password Change Modals -->
+{% for user in users %}
+<div class="modal fade" id="changePasswordModal{{ user.id }}" tabindex="-1" aria-labelledby="changePasswordModalLabel{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel{{ user.id }}">
+                    <i class="fas fa-key me-2"></i>Change Password for {{ user.username }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('admin_change_password', user_id=user.id) }}" method="POST">
+                <!-- CSRF Token - Choose the appropriate one for your setup -->
+                {% if csrf_token %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% elif form and form.csrf_token %}
+                    {{ form.csrf_token }}
+                {% else %}
+                    <!-- If no CSRF protection is set up, you can remove this line -->
+                    <input type="hidden" name="csrf_token" value="">
+                {% endif %}
+                <div class="modal-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Admin Override:</strong> You are changing passwords for user "{{ user.username }}" without their current password.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="newPassword{{ user.id }}" class="form-label">
+                            <i class="fas fa-lock me-1"></i>New Real Password
+                        </label>
+                        <input type="password" class="form-control" id="newPassword{{ user.id }}" 
+                               name="new_password" required minlength="6">
+                        <div class="form-text">This is the user's main password for accessing real data.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirmPassword{{ user.id }}" class="form-label">
+                            <i class="fas fa-lock me-1"></i>Confirm New Real Password
+                        </label>
+                        <input type="password" class="form-control" id="confirmPassword{{ user.id }}" 
+                               name="confirm_password" required minlength="6">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="newDummyPassword{{ user.id }}" class="form-label">
+                            <i class="fas fa-mask me-1"></i>New Dummy Password
+                        </label>
+                        <input type="password" class="form-control" id="newDummyPassword{{ user.id }}" 
+                               name="new_dummy_password" required minlength="6">
+                        <div class="form-text">This is the user's dummy password for accessing dummy data.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirmDummyPassword{{ user.id }}" class="form-label">
+                            <i class="fas fa-mask me-1"></i>Confirm New Dummy Password
+                        </label>
+                        <input type="password" class="form-control" id="confirmDummyPassword{{ user.id }}" 
+                               name="confirm_dummy_password" required minlength="6">
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="notifyUser{{ user.id }}" 
+                               name="notify_user" checked>
+                        <label class="form-check-label" for="notifyUser{{ user.id }}">
+                            Notify user via email about password change
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Update Passwords
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <div class="row mt-4">
     <div class="col-md-6">
@@ -103,6 +191,10 @@
                     <li class="list-group-item">
                         <i class="fas fa-user-check me-2"></i>
                         <strong>Activating Users:</strong> Restores a deactivated user's access to the system
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-cog me-2"></i>
+                        <strong>Password Management:</strong> Administrators can change user passwords without knowing current ones
                     </li>
                 </ul>
             </div>
@@ -134,9 +226,54 @@
                         <i class="fas fa-user-secret me-2"></i>
                         <strong>Privacy:</strong> Users should utilize the dummy password in public settings
                     </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-user-cog me-2"></i>
+                        <strong>Admin Override:</strong> Use password change privilege responsibly and document changes
+                    </li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function confirmAction(message) {
+    return confirm(message);
+}
+
+// Password confirmation validation
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form[action*="admin_change_password"]');
+    
+    forms.forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const newPassword = form.querySelector('input[name="new_password"]').value;
+            const confirmPassword = form.querySelector('input[name="confirm_password"]').value;
+            const newDummyPassword = form.querySelector('input[name="new_dummy_password"]').value;
+            const confirmDummyPassword = form.querySelector('input[name="confirm_dummy_password"]').value;
+            
+            if (newPassword !== confirmPassword) {
+                e.preventDefault();
+                alert('Real passwords do not match!');
+                return false;
+            }
+            
+            if (newDummyPassword !== confirmDummyPassword) {
+                e.preventDefault();
+                alert('Dummy passwords do not match!');
+                return false;
+            }
+            
+            if (newPassword === newDummyPassword) {
+                e.preventDefault();
+                alert('Real and dummy passwords should be different for security!');
+                return false;
+            }
+            
+            return confirm('Are you sure you want to change passwords for this user?');
+        });
+    });
+});
+</script>
+
 {% endblock %}

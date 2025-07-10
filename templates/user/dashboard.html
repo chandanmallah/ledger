@@ -27,7 +27,7 @@
                     <i class="fas fa-wallet me-2"></i>Total Balance
                 </h5>
                 <p class="display-4 mb-0 {% if total_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    ${{ "{:,.2f}".format(total_balance) }}
+                    ₹{{ "{:,.2f}".format(total_balance) }}
                 </p>
                 <p class="card-text text-muted">
                     Across all ledgers
@@ -101,7 +101,8 @@
 <!-- Charts and Recent Transactions -->
 <div class="row">
     <!-- Transaction History -->
-    <div class="col-lg-6 mb-4">
+    <!-- <div class="col-lg-6 mb-4"> -->
+    <div class="col-12 mb-4">        
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -126,7 +127,7 @@
                                         <td>{{ transaction.date.strftime('%Y-%m-%d') }}</td>
                                         <td>{{ transaction.description }}</td>
                                         <td class="{% if transaction.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
-                                            {% if transaction.is_debit %}-{% endif %}${{ "{:,.2f}".format(transaction.amount) }}
+                                            {% if transaction.is_debit %}-{% endif %}₹{{ "{:,.2f}".format(transaction.amount) }}
                                         </td>
                                         <td>
                                             {% if transaction.is_debit %}
@@ -159,7 +160,7 @@
     </div>
     
     <!-- Chart -->
-    <div class="col-lg-6 mb-4">
+    <!-- <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -168,14 +169,13 @@
             </div>
             <div class="card-body">
                 <div class="chart-container">
-                    <!-- Placeholder for chart - In a real app, this would be populated with actual data -->
                     <canvas id="balanceTrendChart" 
                            data-balance="[1000, 1250, 900, 1400, 1600, 1800, 1900]"
                            data-labels='["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]'></canvas>
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 </div>
 
 <!-- Ledger List -->

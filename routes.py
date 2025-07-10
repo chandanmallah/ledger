@@ -38,6 +38,151 @@ def index():
             return redirect(url_for('user_dashboard'))
     return redirect(url_for('login'))
 
+@app.route('/check-auth')
+def check_auth():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
+    return redirect(url_for('login'))
+
+from flask import request, flash, redirect, url_for, render_template
+from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash
+from functools import wraps
+
+# Decorator to ensure only admins can access certain routes
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('You need administrator privileges to access this page.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/admin/change_password/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_change_password(user_id):
+    """Allow admin to change user passwords without knowing current password"""
+    
+    # Get the user to update
+    user = User.query.get_or_404(user_id)
+    
+    # Get form data
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    new_dummy_password = request.form.get('new_dummy_password')
+    confirm_dummy_password = request.form.get('confirm_dummy_password')
+    notify_user = request.form.get('notify_user')
+    
+    # Validation
+    if not new_password or not confirm_password or not new_dummy_password or not confirm_dummy_password:
+        flash('All password fields are required.', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    if new_password != confirm_password:
+        flash('Real passwords do not match.', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    if new_dummy_password != confirm_dummy_password:
+        flash('Dummy passwords do not match.', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    if len(new_password) < 6 or len(new_dummy_password) < 6:
+        flash('Passwords must be at least 6 characters long.', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    if new_password == new_dummy_password:
+        flash('Real and dummy passwords should be different for security.', 'warning')
+        return redirect(url_for('manage_users'))
+    
+    try:
+        # Update user passwords
+        user.password_hash = generate_password_hash(new_password)
+        user.password_hash_dummy = generate_password_hash(new_dummy_password)
+        
+        # Log the admin action (optional - add to your logging system)
+        app.logger.info(f'Admin {current_user.username} changed passwords for user {user.username}')
+        
+        # Commit changes
+        db.session.commit()
+        
+        # Send notification email if requested
+        if notify_user:
+            try:
+                send_password_change_notification(user)
+            except Exception as e:
+                app.logger.error(f'Failed to send notification email: {str(e)}')
+                flash(f'Passwords updated successfully, but failed to send notification email to {user.email}.', 'warning')
+        
+        flash(f'Passwords for user "{user.username}" have been updated successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error updating passwords for user {user.username}: {str(e)}')
+        flash('An error occurred while updating passwords. Please try again.', 'danger')
+    
+    return redirect(url_for('manage_users'))
+
+def send_password_change_notification(user):
+    """Send email notification to user about password change"""
+    from flask_mail import Message
+    
+    if not hasattr(app, 'mail'):
+        return  # Mail not configured
+    
+    msg = Message(
+        subject='Password Changed by Administrator',
+        sender=app.config.get('MAIL_USERNAME'),
+        recipients=[user.email]
+    )
+    
+    msg.body = f'''
+    Dear {user.username},
+
+    Your account passwords have been changed by an administrator.
+
+    If you did not request this change, please contact your system administrator immediately.
+
+    For security reasons, please log in and verify your access.
+
+    Best regards,
+    System Administrator
+    '''
+    
+    msg.html = f'''
+    <h3>Password Changed</h3>
+    <p>Dear {user.username},</p>
+    <p>Your account passwords have been changed by an administrator.</p>
+    <p><strong>If you did not request this change, please contact your system administrator immediately.</strong></p>
+    <p>For security reasons, please log in and verify your access.</p>
+    <p>Best regards,<br>System Administrator</p>
+    '''
+    
+    app.mail.send(msg)
+
+# Optional: Add audit log for password changes
+@app.route('/admin/password_change_log')
+@login_required
+@admin_required
+def password_change_log():
+    """View log of password changes made by admins"""
+    # This would require a separate audit log table
+    # Example structure:
+    # class PasswordChangeLog(db.Model):
+    #     id = db.Column(db.Integer, primary_key=True)
+    #     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    #     target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    #     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    #     ip_address = db.Column(db.String(45))
+    
+    # logs = PasswordChangeLog.query.order_by(PasswordChangeLog.timestamp.desc()).all()
+    # return render_template('admin/password_change_log.html', logs=logs)
+    pass
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -49,7 +194,6 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         
         if user:
-            # Check if password matches the real password
             if check_password_hash(user.password_hash, form.password.data):
                 user.using_dummy = False
                 db.session.commit()
@@ -57,8 +201,7 @@ def login():
                 flash('Logged in successfully with real data view.', 'success')
                 next_page = request.args.get('next')
                 return redirect(next_page) if next_page else redirect(url_for('index'))
-            
-            # Check if password matches the dummy password
+
             elif check_password_hash(user.password_hash_dummy, form.password.data):
                 user.using_dummy = True
                 db.session.commit()
@@ -66,8 +209,7 @@ def login():
                 flash('Logged in successfully with dummy data view.', 'success')
                 next_page = request.args.get('next')
                 return redirect(next_page) if next_page else redirect(url_for('index'))
-        
-        # Invalid login attempt
+
         flash('Login unsuccessful. Please check username and password.', 'danger')
     
     return render_template('login.html', title='Login', form=form)
@@ -373,6 +515,243 @@ def add_ledger_entry(ledger_id):
     
     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
+
+from sqlalchemy import func
+
+@app.route('/ledger/<int:ledger_id>/users')
+@login_required
+def get_ledger_users(ledger_id):
+    print("in")
+    """
+    Get all users who have transactions in this ledger
+    """
+    is_dummy = is_using_dummy()
+    
+    # Get the ledger and verify ownership
+    ledger = Ledger.query.get_or_404(ledger_id)
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get all users who have transactions in this ledger
+    users_with_transactions = db.session.query(User, func.count(LedgerEntry.id).label('transaction_count')).join(
+        LedgerEntry, LedgerEntry.connected_user_id == User.id
+    ).filter(
+        LedgerEntry.ledger_id == ledger_id
+    ).group_by(User.id).all()
+    
+    users_data = []
+    for user, transaction_count in users_with_transactions:
+        # Calculate balance for this user in this ledger
+        entries = LedgerEntry.query.filter_by(
+            ledger_id=ledger_id,
+            connected_user_id=user.id
+        ).all()
+        
+        balance = 0
+        for entry in entries:
+            if entry.is_debit:
+                balance -= entry.amount
+            else:
+                balance += entry.amount
+        
+        users_data.append({
+            'id': user.id,
+            'username': user.username,
+            'transaction_count': transaction_count,
+            'balance': float(balance),
+            'balance_status': (
+                'owed_to_you' if balance > 0 
+                else 'you_owe' if balance < 0 
+                else 'settled'
+            )
+        })
+    
+    # Sort by username
+    users_data.sort(key=lambda x: x['username'])
+    
+    return jsonify({
+        'success': True,
+        'ledger': {
+            'id': ledger.id,
+            'name': ledger.name
+        },
+        'users': users_data,
+        'total_users': len(users_data)
+    })
+
+#search user in ledger
+from flask import jsonify
+
+@app.route('/ledger/<int:ledger_id>/search')
+@login_required
+def search_ledger_transactions(ledger_id):
+    """Search for transactions by username and/or date range with balance calculation"""
+    try:
+        from datetime import datetime
+        
+        # Get the ledger and verify ownership
+        ledger = Ledger.query.filter_by(id=ledger_id, user_id=current_user.id).first()
+        if not ledger:
+            return jsonify({'success': False, 'error': 'Ledger not found'}), 404
+        
+        # Get search parameters
+        username = request.args.get('username', '').strip()
+        from_date = request.args.get('from_date', '').strip()
+        to_date = request.args.get('to_date', '').strip()
+        
+        # Validate that at least one filter is provided
+        if not username and not from_date and not to_date:
+            return jsonify({'success': False, 'error': 'At least one filter parameter is required'}), 400
+        
+        # Parse dates if provided
+        from_datetime = None
+        to_datetime = None
+        
+        if from_date:
+            try:
+                from_datetime = datetime.strptime(from_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid from_date format. Use YYYY-MM-DD'}), 400
+        
+        if to_date:
+            try:
+                # Add 23:59:59 to include the entire day
+                to_datetime = datetime.strptime(to_date + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid to_date format. Use YYYY-MM-DD'}), 400
+        
+        # Build base query for transactions in this ledger
+        base_query = LedgerEntry.query.filter_by(ledger_id=ledger_id)
+        
+        # Apply date filters
+        if from_datetime:
+            base_query = base_query.filter(LedgerEntry.date >= from_datetime)
+        if to_datetime:
+            base_query = base_query.filter(LedgerEntry.date <= to_datetime)
+        
+        if username:
+            # Search with username filter
+            matching_users = User.query.filter(
+                User.username.ilike(f'%{username}%')
+            ).all()
+            
+            if not matching_users:
+                return jsonify({
+                    'success': True,
+                    'results': [],
+                    'total_balance': 0,
+                    'total_transactions': 0
+                })
+            
+            results = []
+            total_balance = 0
+            
+            for user in matching_users:
+                # Get transactions for this user with date filters applied
+                user_transactions = base_query.filter_by(
+                    connected_user_id=user.id
+                ).order_by(LedgerEntry.date.desc()).all()
+                
+                if user_transactions:  # Only include users who have transactions
+                    user_balance = 0
+                    transaction_list = []
+                    
+                    for transaction in user_transactions:
+                        # Calculate user balance
+                        if transaction.is_debit:
+                            user_balance -= transaction.amount
+                            total_balance -= transaction.amount
+                        else:
+                            user_balance += transaction.amount
+                            total_balance += transaction.amount
+                        
+                        # Format transaction for response
+                        transaction_list.append({
+                            'id': transaction.id,
+                            'description': transaction.description,
+                            'amount': float(transaction.amount),
+                            'is_debit': transaction.is_debit,
+                            'created_at': transaction.date.isoformat()
+                        })
+                    
+                    results.append({
+                        'user': {
+                            'id': user.id,
+                            'username': user.username
+                        },
+                        'transactions': transaction_list,
+                        'transaction_count': len(user_transactions),
+                        'user_balance': round(user_balance, 2)
+                    })
+            
+            total_transactions = sum(len(result['transactions']) for result in results)
+            
+            return jsonify({
+                'success': True,
+                'results': results,
+                'total_balance': round(total_balance, 2),
+                'total_transactions': total_transactions,
+                'filters': {
+                    'username': username,
+                    'from_date': from_date,
+                    'to_date': to_date
+                }
+            })
+        
+        else:
+            # Only date filter (no username filter)
+            transactions = base_query.order_by(LedgerEntry.date.desc()).all()
+            
+            if not transactions:
+                return jsonify({
+                    'success': True,
+                    'transactions': [],
+                    'total_balance': 0,
+                    'total_transactions': 0
+                })
+            
+            total_balance = 0
+            transaction_list = []
+            
+            for transaction in transactions:
+                # Calculate balance
+                if transaction.is_debit:
+                    total_balance -= transaction.amount
+                else:
+                    total_balance += transaction.amount
+                
+                # Get connected user info if exists
+                connected_user = None
+                if transaction.connected_user_id:
+                    connected_user = {
+                        'id': transaction.connected_user.id,
+                        'username': transaction.connected_user.username
+                    }
+                
+                # Format transaction for response
+                transaction_list.append({
+                    'id': transaction.id,
+                    'description': transaction.description,
+                    'amount': float(transaction.amount),
+                    'is_debit': transaction.is_debit,
+                    'created_at': transaction.date.isoformat(),
+                    'connected_user': connected_user
+                })
+            
+            return jsonify({
+                'success': True,
+                'transactions': transaction_list,
+                'total_balance': round(total_balance, 2),
+                'total_transactions': len(transactions),
+                'filters': {
+                    'from_date': from_date,
+                    'to_date': to_date
+                }
+            })
+        
+    except Exception as e:
+        print(f"Search error: {str(e)}")  # For debugging
+        return jsonify({'success': False, 'error': 'An error occurred during search'}), 500
 
 @app.route('/connections')
 @login_required

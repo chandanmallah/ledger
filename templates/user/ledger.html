@@ -79,12 +79,13 @@
     <!-- Ledger Balance Card -->
     <div class="row mb-4">
         <div class="col-md-6 mx-auto">
-            <div class="card text-center">
+            <div class="card text-center" id="balanceCard">
                 <div class="card-body">
-                    <h5 class="card-title">Current Balance</h5>
-                    <p class="balance-display {% if balance >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ "{:,.2f}".format(balance) }}
+                    <h5 class="card-title" id="balanceTitle">Current Balance</h5>
+                    <p class="balance-display {% if balance >= 0 %}positive{% else %}negative{% endif %}" id="balanceAmount">
+                        ₹{{ "{:,.2f}".format(balance) }}
                     </p>
+                    <small class="text-muted" id="balanceSubtext" style="display: none;"></small>
                 </div>
             </div>
         </div>
@@ -94,15 +95,51 @@
         <!-- Transaction List -->
         <div class="col-lg-8 mb-4">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-list me-2"></i>Transaction History
                     </h5>
+                    <!-- Search and Filter Bar -->
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Username Search -->
+                        <div class="input-group" style="width: 200px;">
+                            <input type="text" class="form-control form-control-sm" 
+                                   id="userSearchInput" 
+                                   placeholder="Search by username..." 
+                                   autocomplete="off">
+                        </div>
+                        
+                        <!-- Date Range Filter -->
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="date" class="form-control form-control-sm" 
+                                   id="fromDate" 
+                                   title="From Date">
+                            <span class="text-muted small">to</span>
+                            <input type="date" class="form-control form-control-sm" 
+                                   id="toDate" 
+                                   title="To Date">
+                        </div>
+                        
+                        <!-- Clear All Filters Button -->
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="clearAllFilters">
+                            <i class="fas fa-times"></i> Clear All
+                        </button>
+                    </div>
                 </div>
-                <div class="card-body">
+                
+                <!-- Search Results Info -->
+                <div id="searchInfo" class="px-3 py-2 bg-light border-bottom" style="display: none;">
+                    <span id="searchResultText" style="color: black;"></span>
+                    <div id="activeFilters" class="mt-1" style="display: none;">
+                        <small class="text-muted">Active filters: </small>
+                        <span id="filterTags"></span>
+                    </div>
+                </div>
+                
+                <div class="card-body" id="transactionContainer">
                     {% if ledger.entries %}
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-hover" id="transactionTable">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
@@ -112,9 +149,9 @@
                                         <th>Type</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="transactionTableBody">
                                     {% for entry in ledger.entries|sort(attribute='date', reverse=true) %}
-                                        <tr>
+                                        <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}">
                                             <td>{{ entry.date.strftime('%Y-%m-%d %H:%M') }}</td>
                                             <td>{{ entry.description }}</td>
                                             <td>
@@ -125,7 +162,7 @@
                                                 {% endif %}
                                             </td>
                                             <td class="{% if entry.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
-                                                {% if entry.is_debit %}-{% endif %}${{ "{:,.2f}".format(entry.amount) }}
+                                                {% if entry.is_debit %}-{% endif %}₹{{ "{:,.2f}".format(entry.amount) }}
                                             </td>
                                             <td>
                                                 {% if entry.is_debit %}
@@ -222,4 +259,287 @@
         </div>
     </div>
 {% endif %}
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('userSearchInput');
+    const fromDateInput = document.getElementById('fromDate');
+    const toDateInput = document.getElementById('toDate');
+    const clearAllFiltersBtn = document.getElementById('clearAllFilters');
+    const searchInfo = document.getElementById('searchInfo');
+    const searchResultText = document.getElementById('searchResultText');
+    const activeFilters = document.getElementById('activeFilters');
+    const filterTags = document.getElementById('filterTags');
+    const tableBody = document.getElementById('transactionTableBody');
+    
+    // Balance card elements
+    const balanceTitle = document.getElementById('balanceTitle');
+    const balanceAmount = document.getElementById('balanceAmount');
+    const balanceSubtext = document.getElementById('balanceSubtext');
+    
+    let searchTimeout;
+    let originalTableContent = tableBody ? tableBody.innerHTML : '';
+    let originalBalance = balanceAmount ? balanceAmount.textContent : '';
+    let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
+    
+    // Get current filters
+    function getCurrentFilters() {
+        return {
+            username: searchInput ? searchInput.value.trim() : '',
+            fromDate: fromDateInput ? fromDateInput.value : '',
+            toDate: toDateInput ? toDateInput.value : ''
+        };
+    }
+    
+    // Check if any filters are active
+    function hasActiveFilters() {
+        const filters = getCurrentFilters();
+        return filters.username || filters.fromDate || filters.toDate;
+    }
+    
+    // Build filter tags display
+    function updateFilterTags() {
+        const filters = getCurrentFilters();
+        let tags = [];
+        
+        if (filters.username) {
+            tags.push(`<span class="badge bg-primary me-1">User: ${filters.username}</span>`);
+        }
+        if (filters.fromDate) {
+            tags.push(`<span class="badge bg-info me-1">From: ${filters.fromDate}</span>`);
+        }
+        if (filters.toDate) {
+            tags.push(`<span class="badge bg-info me-1">To: ${filters.toDate}</span>`);
+        }
+        
+        if (tags.length > 0) {
+            filterTags.innerHTML = tags.join('');
+            activeFilters.style.display = 'block';
+        } else {
+            activeFilters.style.display = 'none';
+        }
+    }
+    
+    // Perform search with all filters
+    function performSearch() {
+        const filters = getCurrentFilters();
+        
+        if (!hasActiveFilters()) {
+            showAllTransactions();
+            return;
+        }
+        
+        // Show loading state
+        searchInfo.style.display = 'block';
+        searchResultText.textContent = 'Searching...';
+        updateFilterTags();
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (filters.username) params.append('username', filters.username);
+        if (filters.fromDate) params.append('from_date', filters.fromDate);
+        if (filters.toDate) params.append('to_date', filters.toDate);
+        
+        // Make API call
+        const ledgerId = {{ ledger.id }};
+        const apiUrl = `/ledger/${ledgerId}/search?${params.toString()}`;
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displaySearchResults(data, filters);
+                } else {
+                    showError(data.error || 'Search failed');
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                showError('Search failed. Please try again.');
+            });
+    }
+    
+    function displaySearchResults(data, filters) {
+        updateFilterTags();
+        
+        if (data.results.length === 0 && data.total_transactions === 0) {
+            searchResultText.textContent = 'No transactions found matching the current filters';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No matching transactions found</td></tr>';
+            updateBalanceForNoResults(filters);
+            return;
+        }
+        
+        // Update search info based on filter type
+        let resultText = '';
+        if (filters.username && (filters.fromDate || filters.toDate)) {
+            // Both user and date filters
+            const dateRange = filters.fromDate && filters.toDate 
+                ? `${filters.fromDate} to ${filters.toDate}`
+                : filters.fromDate 
+                    ? `from ${filters.fromDate}`
+                    : `until ${filters.toDate}`;
+            resultText = `Found ${data.total_transactions} transaction(s) for users matching "${filters.username}" ${dateRange}`;
+        } else if (filters.username) {
+            // Only user filter
+            resultText = `Found ${data.total_transactions} transaction(s) for ${data.results.length} user(s) matching "${filters.username}"`;
+        } else {
+            // Only date filter
+            const dateRange = filters.fromDate && filters.toDate 
+                ? `between ${filters.fromDate} and ${filters.toDate}`
+                : filters.fromDate 
+                    ? `from ${filters.fromDate}`
+                    : `until ${filters.toDate}`;
+            resultText = `Found ${data.total_transactions} transaction(s) ${dateRange}`;
+        }
+        
+        searchResultText.textContent = resultText;
+        
+        // Update balance for filtered results
+        updateBalanceForSearch(data, filters);
+        
+        // Build new table content
+        let newTableContent = '';
+        
+        if (data.results && data.results.length > 0) {
+            // User-based results (when username filter is used)
+            data.results.forEach(userResult => {
+                userResult.transactions.forEach(transaction => {
+                    newTableContent += buildTransactionRow(transaction, userResult.user);
+                });
+            });
+        } else if (data.transactions) {
+            // Direct transaction results (when only date filter is used)
+            data.transactions.forEach(transaction => {
+                newTableContent += buildTransactionRow(transaction, transaction.connected_user);
+            });
+        }
+        
+        tableBody.innerHTML = newTableContent;
+    }
+    
+    function buildTransactionRow(transaction, user) {
+        const date = new Date(transaction.created_at).toLocaleString();
+        const amountClass = transaction.is_debit ? 'transaction-debit' : 'transaction-credit';
+        const amountPrefix = transaction.is_debit ? '-' : '';
+        const typeClass = transaction.is_debit ? 'bg-danger' : 'bg-success';
+        const typeText = transaction.is_debit ? 'Debit' : 'Credit';
+        const userDisplay = user ? `<span class="badge bg-info">${user.username}</span>` : '<span class="text-muted">-</span>';
+        
+        return `
+            <tr class="search-result-row">
+                <td>${date}</td>
+                <td>${transaction.description}</td>
+                <td>${userDisplay}</td>
+                <td class="${amountClass}">${amountPrefix}₹${transaction.amount.toFixed(2)}</td>
+                <td><span class="badge ${typeClass}">${typeText}</span></td>
+            </tr>
+        `;
+    }
+    
+    function updateBalanceForSearch(data, filters) {
+        const totalBalance = data.total_balance || 0;
+        
+        // Update balance title based on active filters
+        let title = 'Filtered Balance';
+        let subtext = '';
+        
+        if (filters.username && (filters.fromDate || filters.toDate)) {
+            title = `Balance with filtered users`;
+            const dateRange = filters.fromDate && filters.toDate 
+                ? `${filters.fromDate} to ${filters.toDate}`
+                : filters.fromDate 
+                    ? `from ${filters.fromDate}`
+                    : `until ${filters.toDate}`;
+            subtext = `Transactions matching "${filters.username}" ${dateRange}`;
+        } else if (filters.username) {
+            const userCount = data.results ? data.results.length : 0;
+            title = userCount === 1 ? `Balance with ${data.results[0].user.username}` : `Balance with filtered users`;
+            subtext = userCount === 1 
+                ? `All transactions with ${data.results[0].user.username}` 
+                : `Transactions with ${userCount} users matching "${filters.username}"`;
+        } else if (filters.fromDate || filters.toDate) {
+            title = 'Balance for Date Range';
+            const dateRange = filters.fromDate && filters.toDate 
+                ? `${filters.fromDate} to ${filters.toDate}`
+                : filters.fromDate 
+                    ? `from ${filters.fromDate}`
+                    : `until ${filters.toDate}`;
+            subtext = `Transactions ${dateRange}`;
+        }
+        
+        balanceTitle.textContent = title;
+        balanceAmount.textContent = `₹${totalBalance.toFixed(2)}`;
+        balanceAmount.className = `balance-display ${totalBalance >= 0 ? 'positive' : 'negative'}`;
+        balanceSubtext.style.display = 'block';
+        balanceSubtext.textContent = subtext;
+    }
+    
+    function updateBalanceForNoResults(filters) {
+        balanceTitle.textContent = 'Filtered Balance';
+        balanceAmount.textContent = '₹0.00';
+        balanceAmount.className = 'balance-display positive';
+        balanceSubtext.style.display = 'block';
+        balanceSubtext.textContent = 'No transactions match the current filters';
+    }
+    
+    function showError(message) {
+        searchResultText.textContent = message;
+        searchInfo.style.display = 'block';
+        activeFilters.style.display = 'none';
+    }
+    
+    function showAllTransactions() {
+        // Clear all inputs
+        if (searchInput) searchInput.value = '';
+        if (fromDateInput) fromDateInput.value = '';
+        if (toDateInput) toDateInput.value = '';
+        
+        searchInfo.style.display = 'none';
+        activeFilters.style.display = 'none';
+        
+        // Restore original table content
+        if (tableBody) {
+            tableBody.innerHTML = originalTableContent;
+        }
+        
+        // Restore original balance
+        balanceTitle.textContent = 'Current Balance';
+        balanceAmount.textContent = originalBalance;
+        balanceAmount.className = originalBalanceClass;
+        balanceSubtext.style.display = 'none';
+    }
+    
+    // Event listeners
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch();
+            }, 300); // Debounce search
+        });
+        
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                performSearch();
+            }
+        });
+    }
+    
+    if (fromDateInput) {
+        fromDateInput.addEventListener('change', performSearch);
+    }
+    
+    if (toDateInput) {
+        toDateInput.addEventListener('change', performSearch);
+    }
+    
+    if (clearAllFiltersBtn) {
+        clearAllFiltersBtn.addEventListener('click', showAllTransactions);
+    }
+});
+</script>
+
 {% endblock %}

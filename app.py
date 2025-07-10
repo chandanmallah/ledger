@@ -1,3 +1,6 @@
+# from dotenv import load_dotenv
+# load_dotenv()
+
 import os
 import logging
 
@@ -8,7 +11,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
 
 
-# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
 class Base(DeclarativeBase):
@@ -19,32 +21,33 @@ db = SQLAlchemy(model_class=Base)
 # create the app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "temporary_secret_key")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  
 
-# configure the database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tally.db")
+# Using SQLite for now - you can switch to PostgreSQL later
+# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ledger.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    "postgresql+psycopg2://ledger_db_buuy_user:tUm745S4BBKb0wvzB9sRnvmVAJSrjl5N@dpg-d0s00ac9c44c73cksto0-a.singapore-postgres.render.com/ledger_db_buuy"
+)
+
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# initialize login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'info'
 
-# initialize the app with the extension
 db.init_app(app)
 
 with app.app_context():
-    # Make sure to import the models here or their tables won't be created
-    import models  # noqa: F401
+    import models 
 
     db.create_all()
-    
-    # Create admin user if not exists
+
     from models import User, Ledger
     from werkzeug.security import generate_password_hash
     
@@ -60,7 +63,7 @@ with app.app_context():
             is_active=True
         )
         db.session.add(admin)
-        db.session.flush()  # Flush to get the admin ID
+        db.session.flush() 
         
         # Create default ledgers for admin
         real_ledger = Ledger(
@@ -80,3 +83,6 @@ with app.app_context():
         db.session.add(real_ledger)
         db.session.add(dummy_ledger)
         db.session.commit()
+
+
+import routes

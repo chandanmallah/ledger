@@ -1,5 +1,12 @@
 {% extends "layout.html" %}
 
+{% block head %}
+<!-- Prevent caching -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
     <div class="col">
@@ -195,4 +202,89 @@
         </div>
     </div>
 </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            // Prevent page caching - handle back button
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    // Page was loaded from cache (back/forward button)
+                    checkAuthAndReload();
+                }
+            });
+            
+            // Check authentication on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                checkAuthentication();
+                startPeriodicCheck();
+            });
+            
+            function checkAuthentication() {
+                fetch('/check-auth', { 
+                    method: 'GET',
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok || response.status === 401) {
+                        handleUnauthenticated();
+                    }
+                })
+                .catch(() => {
+                    handleUnauthenticated();
+                });
+            }
+            
+            function checkAuthAndReload() {
+                fetch('/check-auth', { 
+                    method: 'GET',
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok || response.status === 401) {
+                        handleUnauthenticated();
+                    } else {
+                        // Force reload to get fresh data
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    handleUnauthenticated();
+                });
+            }
+            
+            function handleUnauthenticated() {
+                // Clear any client-side storage
+                sessionStorage.clear();
+                localStorage.clear();
+                
+                // Redirect to login page
+                window.location.replace('/login');
+            }
+            
+            function startPeriodicCheck() {
+                // Check authentication every 30 seconds
+                setInterval(checkAuthentication, 30000);
+            }
+            
+            // Handle logout (if you have a logout button)
+            window.handleLogout = function() {
+                fetch('/logout', { 
+                    method: 'POST',
+                    credentials: 'same-origin'
+                })
+                .then(() => {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.replace('/login');
+                })
+                .catch(() => {
+                    // Even if logout fails, redirect to login
+                    window.location.replace('/login');
+                });
+            };
+        })();
+    </script>
+
 {% endblock %}
