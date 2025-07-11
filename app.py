@@ -1,5 +1,5 @@
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 import os
 import logging
@@ -26,9 +26,10 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Using SQLite for now - you can switch to PostgreSQL later
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ledger.db"
 
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "postgresql+psycopg2://ledger_db_buuy_user:tUm745S4BBKb0wvzB9sRnvmVAJSrjl5N@dpg-d0s00ac9c44c73cksto0-a.singapore-postgres.render.com/ledger_db_buuy"
-)
+# app.config["SQLALCHEMY_DATABASE_URI"] = (
+#     "postgresql+psycopg2://ledger_db_buuy_user:tUm745S4BBKb0wvzB9sRnvmVAJSrjl5N@dpg-d0s00ac9c44c73cksto0-a.singapore-postgres.render.com/ledger_db_buuy"
+# )
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
