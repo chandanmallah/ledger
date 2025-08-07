@@ -27,8 +27,19 @@ def admin_required(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
+@app.route("/snake-game")
+def snake_game():
+    """Renders the snake game page."""
+    print("yaha 2")
+    return render_template("snake_game.html", title="Snake Game")
 
-# Auth routes
+@app.route("/main-page")
+def main_page():
+    return render_template("index.html", title="Main Game")
+
+# @app.route("/")
+# def index():
+#     return redirect(url_for('main_page'))
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -36,16 +47,40 @@ def index():
             return redirect(url_for('admin_dashboard'))
         else:
             return redirect(url_for('user_dashboard'))
-    return redirect(url_for('login'))
+    return redirect(url_for('main_page'))
+
+
+@app.route("/bike-race-game")
+def bike_race_game():
+    return render_template("modern_bike_race.html", title="Bike Race Game")
+
+
+
+# @app.route("/")
+# # @login_required
+# def snake_game():
+#     """Renders the snake game page."""
+#     return render_template("snake_game.html")
+
+# Auth routes
+# @app.route('/')
+# def index():
+#     if current_user.is_authenticated:
+#         if current_user.is_admin:
+#             return redirect(url_for('admin_dashboard'))
+#         else:
+#             return redirect(url_for('user_dashboard'))
+#     return redirect(url_for('login'))
 
 @app.route('/check-auth')
 def check_auth():
+    print("yaha3")
     if current_user.is_authenticated:
         if current_user.is_admin:
             return redirect(url_for('admin_dashboard'))
         else:
             return redirect(url_for('user_dashboard'))
-    return redirect(url_for('login'))
+    return redirect(url_for('main_page'))
 
 from flask import request, flash, redirect, url_for, render_template
 from flask_login import login_required, current_user
@@ -198,7 +233,7 @@ def login():
                 user.using_dummy = False
                 db.session.commit()
                 login_user(user)
-                flash('Logged in successfully with real data view.', 'success')
+                flash('Logged in successfully.', 'success')
                 next_page = request.args.get('next')
                 return redirect(next_page) if next_page else redirect(url_for('index'))
 
@@ -219,7 +254,7 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
+    return redirect(url_for('main_page'))
 
 
 # Admin routes
@@ -312,17 +347,60 @@ def toggle_user(user_id):
 
 
 # User routes
+# @app.route('/dashboard')
+# @login_required
+# def user_dashboard():
+#     is_dummy = is_using_dummy()
+
+#     ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
+    
+#     # Calculate total balance
+#     total_balance = 0
+#     for ledger in ledgers:
+#         for entry in ledger.entries:
+#             if entry.is_debit:
+#                 total_balance -= entry.amount
+#             else:
+#                 total_balance += entry.amount
+    
+#     # Get connection requests only in real mode
+#     if is_dummy:
+#         pending_requests = []  # No connection requests in dummy mode
+#     else:
+#         pending_requests = Connection.query.filter_by(
+#             connected_user_id=current_user.id, 
+#             status='pending'
+#         ).all()
+    
+#     # Get recent transactions
+#     recent_transactions = LedgerEntry.query.join(Ledger).filter(
+#         Ledger.user_id == current_user.id,
+#         Ledger.is_dummy == is_dummy
+#     ).order_by(LedgerEntry.date.desc()).limit(5).all()
+    
+#     return render_template('user/dashboard.html',
+#                           title='Dashboard',
+#                           ledgers=ledgers,
+#                           total_balance=total_balance,
+#                           pending_requests=pending_requests,
+#                           recent_transactions=recent_transactions,
+#                           is_dummy=is_dummy)
+
 @app.route('/dashboard')
 @login_required
 def user_dashboard():
     is_dummy = is_using_dummy()
+
+    page = request.args.get('page', 1, type=int)
+    ledgers_pagination = Ledger.query.filter_by(
+        user_id=current_user.id, 
+        is_dummy=is_dummy
+    ).paginate(page=page, per_page=9)
     
-    # Get user's ledgers based on current view (real/dummy)
-    ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
-    
-    # Calculate total balance
+    # Calculate total balance (This part remains the same, it should be calculated across all ledgers, not just the paginated ones)
     total_balance = 0
-    for ledger in ledgers:
+    all_ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
+    for ledger in all_ledgers:
         for entry in ledger.entries:
             if entry.is_debit:
                 total_balance -= entry.amount
@@ -331,27 +409,43 @@ def user_dashboard():
     
     # Get connection requests only in real mode
     if is_dummy:
-        pending_requests = []  # No connection requests in dummy mode
+        pending_requests = []
     else:
         pending_requests = Connection.query.filter_by(
             connected_user_id=current_user.id, 
             status='pending'
         ).all()
     
-    # Get recent transactions
+    # Get recent transactions (This part remains the same)
     recent_transactions = LedgerEntry.query.join(Ledger).filter(
         Ledger.user_id == current_user.id,
         Ledger.is_dummy == is_dummy
     ).order_by(LedgerEntry.date.desc()).limit(5).all()
     
+    # Pass the pagination object and the total list of ledgers to the template
     return render_template('user/dashboard.html',
-                          title='Dashboard',
-                          ledgers=ledgers,
-                          total_balance=total_balance,
-                          pending_requests=pending_requests,
-                          recent_transactions=recent_transactions,
-                          is_dummy=is_dummy)
+                           title='Dashboard',
+                           ledgers=all_ledgers, # Pass the full list to show the count
+                           ledgers_pagination=ledgers_pagination, # Pass the paginated object to display
+                           total_balance=total_balance,
+                           pending_requests=pending_requests,
+                           recent_transactions=recent_transactions,
+                           is_dummy=is_dummy)
 
+@app.route('/get_ledgers/<int:page>')
+@login_required
+def get_ledgers(page):
+    # This function is now responsible for rendering just the ledger list and pagination
+    is_dummy = is_using_dummy() # Assuming this is a global or imported function
+
+    # Paginate the ledgers with 9 items per page
+    ledgers_pagination = Ledger.query.filter_by(
+        user_id=current_user.id, 
+        is_dummy=is_dummy
+    ).paginate(page=page, per_page=9)
+    
+    # Render a partial template and return the HTML
+    return render_template('user/ledger_list_partial.html', ledgers_pagination=ledgers_pagination)
 
 @app.route('/ledger/create', methods=['GET', 'POST'])
 @login_required
@@ -379,6 +473,12 @@ def create_ledger():
                           action="create")
 
 
+
+from datetime import date, timedelta
+from sqlalchemy import func
+from calendar import monthrange
+from sqlalchemy import func, case
+
 @app.route('/ledger/<int:ledger_id>')
 @login_required
 def view_ledger(ledger_id):
@@ -405,21 +505,106 @@ def view_ledger(ledger_id):
     
     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
     
-    # Calculate total balance
-    balance = 0
-    for entry in ledger.entries:
-        if entry.is_debit:
-            balance -= entry.amount
-        else:
-            balance += entry.amount
+    # --- NEW LOGIC FOR AGGREGATED BALANCE ---
+    today = date.today()
+    first_day_of_current_month = today.replace(day=1)
     
+    # Calculate the total balance from all entries BEFORE the current month
+    previous_month_balance = db.session.query(
+        func.sum(
+            case(
+                (LedgerEntry.is_debit == True, -LedgerEntry.amount),
+                else_=LedgerEntry.amount
+            )
+        )
+    ).filter(
+        LedgerEntry.ledger_id == ledger.id,
+        LedgerEntry.date < first_day_of_current_month
+    ).scalar() or 0.0  # Use 0.0 if no entries are found
+    
+    # Get all entries for the current month
+    current_month_entries = LedgerEntry.query.filter(
+        LedgerEntry.ledger_id == ledger.id,
+        LedgerEntry.date >= first_day_of_current_month
+    ).order_by(LedgerEntry.date.asc()).all()
+
+    # Create a new "virtual" entry for the aggregated balance to display
+    # This entry is NOT saved to the database. It's just for the view.
+    aggregated_entry = {
+        'date': first_day_of_current_month,
+        'description': 'Previous Month Aggregated Balance',
+        'amount': abs(previous_month_balance),
+        'is_debit': previous_month_balance < 0,
+        'is_aggregated': True # Add a flag to identify this entry in the template
+    }
+    
+    # Combine the aggregated entry with the current month's entries
+    # The list will now start with the aggregated balance, followed by the new entries
+    all_entries_to_display = [aggregated_entry] + current_month_entries
+    
+    # Calculate the running total for the balance
+    current_balance = previous_month_balance
+    for entry in current_month_entries:
+        if entry.is_debit:
+            current_balance -= entry.amount
+        else:
+            current_balance += entry.amount
+
     return render_template('user/ledger.html',
-                          title=f'Ledger: {ledger.name}',
-                          ledger=ledger,
-                          form=form,
-                          balance=balance,
-                          is_dummy=is_dummy,
-                          action="view")
+                           title=f'Ledger: {ledger.name}',
+                           ledger=ledger,
+                           form=form,
+                           balance=current_balance, # Pass the final calculated balance
+                           all_entries=all_entries_to_display, # Pass the new combined list
+                           is_dummy=is_dummy,
+                           action="view")
+    # return render_template('user/ledger.html',
+    #                     # ... (other variables like title, ledger, form, etc.) ...
+    #                     all_entries=all_entries_with_balance,
+    #                     balance=running_balance, # This is the final balance
+    #                     is_dummy=is_dummy,
+    #                     action="view")
+# @app.route('/ledger/<int:ledger_id>')
+# @login_required
+# def view_ledger(ledger_id):
+#     is_dummy = is_using_dummy()
+#     ledger = Ledger.query.get_or_404(ledger_id)
+    
+#     # Security check: Verify user owns this ledger and it matches the current view mode
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+#         abort(403)
+    
+#     # Create form for adding new entries
+#     form = LedgerEntryForm()
+#     form.ledger_id.data = ledger_id
+    
+#     # Get user's connections for the selection field
+#     connections = User.query.join(Connection, or_(
+#         and_(Connection.user_id == current_user.id, 
+#              Connection.connected_user_id == User.id),
+#         and_(Connection.connected_user_id == current_user.id, 
+#              Connection.user_id == User.id)
+#     )).filter(
+#         Connection.status == 'accepted'
+#     ).all()
+    
+#     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+    
+#     # Calculate total balance
+#     balance = 0
+#     for entry in ledger.entries:
+#         if entry.is_debit:
+#             balance -= entry.amount
+#         else:
+#             balance += entry.amount
+    
+#     return render_template('user/ledger.html',
+#                           title=f'Ledger: {ledger.name}',
+#                           ledger=ledger,
+#                           form=form,
+#                           balance=balance,
+#                           is_dummy=is_dummy,
+#                           action="view")
 
 
 @app.route('/ledger/<int:ledger_id>/add_entry', methods=['POST'])

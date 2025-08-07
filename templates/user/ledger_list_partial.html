@@ -1,0 +1,79 @@
+{% if ledgers_pagination.items %}
+    <div class="card-body">
+        <div class="row">
+            {% for ledger in ledgers_pagination.items %}
+                <div class="col-md-4 mb-3">
+                    <div class="card dashboard-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ ledger.name }}</h5>
+                            <p class="card-text">
+                                {% if ledger.description %}
+                                    {{ ledger.description }}
+                                {% else %}
+                                    <span class="text-muted">No description</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{{ url_for('view_ledger', ledger_id=ledger.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-eye me-1"></i>View Ledger
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <div class="card-body">
+        <div class="alert alert-info" role="alert">
+            <h4 class="alert-heading">No Ledgers Found</h4>
+            <p>You don't have any ledgers yet.</p>
+            <hr>
+            <p class="mb-0">Click below to create your first ledger.</p>
+        </div>
+        <div class="text-center">
+            <a href="{{ url_for('create_ledger') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Create New Ledger
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+{% if ledgers_pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-center">
+        <nav>
+            <ul class="pagination mb-0">
+                <li class="page-item {% if not ledgers_pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="#" onclick="loadLedgers({{ ledgers_pagination.prev_num }}); return false;" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+
+                {% for page_num in ledgers_pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if ledgers_pagination.page == page_num %}
+                            <li class="page-item active">
+                                <a class="page-link" href="#" onclick="return false;">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="#" onclick="loadLedgers({{ page_num }}); return false;">{{ page_num }}</a>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if not ledgers_pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="#" onclick="loadLedgers({{ ledgers_pagination.next_num }}); return false;" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+{% endif %}

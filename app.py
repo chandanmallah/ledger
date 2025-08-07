@@ -46,7 +46,7 @@ db.init_app(app)
 
 with app.app_context():
     import models 
-
+    # db.drop_all()
     db.create_all()
 
     from models import User, Ledger
@@ -87,3 +87,11 @@ with app.app_context():
 
 
 import routes
+from flask import Flask, render_template
+
+from flask import Flask, render_template, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_login import LoginManager, login_required, current_user
+

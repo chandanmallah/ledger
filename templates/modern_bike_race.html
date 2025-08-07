@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Rider - Modern Bike Racing</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Animated stars background */
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #ffffff;
+            border-radius: 50%;
+            animation: twinkle 3s linear infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 10;
+        }
+
+        .hud-left, .hud-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00d4ff;
+            border-radius: 15px;
+            padding: 12px 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .hud-panel h3 {
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hud-value {
+            font-size: 20px;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 10px #00d4ff;
+        }
+
+        .speed-meter {
+            width: 150px;
+        }
+
+        .speed-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .speed-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00d4ff, #ff0080);
+            width: 0%;
+            transition: width 0.1s ease;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        #gameCanvas {
+            border: 3px solid rgba(0, 212, 255, 0.5);
+            border-radius: 20px;
+            box-shadow: 
+                0 0 50px rgba(0, 212, 255, 0.3),
+                inset 0 0 100px rgba(0, 0, 0, 0.5);
+            background: radial-gradient(ellipse at center, rgba(26, 26, 46, 0.8) 0%, rgba(10, 10, 10, 0.9) 100%);
+        }
+
+        .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 15;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px;
+            border-radius: 25px;
+            border: 3px solid #00d4ff;
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.4);
+        }
+
+        .start-screen h1 {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #00d4ff, #00ff88, #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: neonGlow 2s ease-in-out infinite alternate;
+        }
+
+        .start-screen .subtitle {
+            font-size: 18px;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        @keyframes neonGlow {
+            from { filter: drop-shadow(0 0 20px #00d4ff); }
+            to { filter: drop-shadow(0 0 40px #00ff88); }
+        }
+
+        .start-screen p {
+            font-size: 16px;
+            color: #cccccc;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .race-button {
+            background: linear-gradient(45deg, #00d4ff, #00ff88);
+            border: none;
+            padding: 18px 45px;
+            border-radius: 30px;
+            color: #000000;
+            font-family: 'Exo 2', sans-serif;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .race-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .race-button:hover::before {
+            left: 100%;
+        }
+
+        .race-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ff0080;
+            box-shadow: 0 0 50px rgba(255, 0, 128, 0.4);
+            display: none;
+            z-index: 20;
+        }
+
+        .game-over h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff0080;
+            font-weight: 900;
+            text-shadow: 0 0 20px #ff0080;
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff0080;
+            border-radius: 15px;
+            padding: 12px 20px;
+            color: #ff0080;
+            font-family: 'Exo 2', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(255, 0, 128, 0.2);
+            z-index: 15;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 0, 128, 0.1);
+            box-shadow: 0 0 30px rgba(255, 0, 128, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .back-button::before {
+            content: '← ';
+            margin-right: 5px;
+        }
+
+        .nitro-indicator {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff0080;
+            border-radius: 15px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #ff0080;
+            display: none;
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: translateX(-50%) scale(1); }
+            to { transform: translateX(-50%) scale(1.05); }
+        }
+
+        /* Particle effects */
+        .exhaust-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #ff0080, transparent);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: exhaustParticle 1s linear forwards;
+        }
+
+        @keyframes exhaustParticle {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.2) translateY(50px);
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .hud {
+                padding: 0 15px;
+                gap: 10px;
+            }
+            
+            .hud-panel {
+                padding: 8px 12px;
+            }
+            
+            .start-screen h1 {
+                font-size: 36px;
+            }
+            
+            .start-screen {
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-left">
+                <div class="hud-panel">
+                    <h3>Speed</h3>
+                    <div class="hud-value" id="speedDisplay">0</div>
+                    <div class="speed-meter">
+                        <div class="speed-bar">
+                            <div class="speed-fill" id="speedFill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hud-panel">
+                    <h3>Distance</h3>
+                    <div class="hud-value" id="distance">0m</div>
+                </div>
+            </div>
+            <div class="hud-right">
+                <div class="hud-panel">
+                    <h3>Time</h3>
+                    <div class="hud-value" id="time">0:00</div>
+                </div>
+                <div class="hud-panel">
+                    <h3>Score</h3>
+                    <div class="hud-value" id="score">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="start-screen" id="startScreen">
+            <h1>NEON RIDER</h1>
+            <div class="subtitle">Future Racing</div>
+            <p>Race through the neon highway at incredible speeds!<br>
+            Use arrow keys to steer and avoid obstacles.<br>
+            Hold SHIFT for nitro boost!</p>
+            <button class="race-button" onclick="startRace()">🏁 Start Race</button>
+        </div>
+
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+        
+        <div class="game-over" id="gameOver">
+            <h2>RACE FINISHED!</h2>
+            <p>Distance Traveled: <span id="finalDistance">0</span>m</p>
+            <p>Top Speed: <span id="topSpeed">0</span> km/h</p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button class="race-button" onclick="restartRace()">🔄 Race Again</button>
+        </div>
+
+        <div class="nitro-indicator" id="nitroIndicator">
+            🔥 NITRO BOOST ACTIVE 🔥
+        </div>
+
+        <div class="controls-info">
+            ← → Arrow Keys to Steer • ↑ Accelerate • ↓ Brake • SHIFT for Nitro
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI Elements
+        const speedDisplay = document.getElementById('speedDisplay');
+        const speedFill = document.getElementById('speedFill');
+        const distanceDisplay = document.getElementById('distance');
+        const timeDisplay = document.getElementById('time');
+        const scoreDisplay = document.getElementById('score');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOver');
+        const nitroIndicator = document.getElementById('nitroIndicator');
+        const finalDistance = document.getElementById('finalDistance');
+        const topSpeed = document.getElementById('topSpeed');
+        const finalScore = document.getElementById('finalScore');
+
+        // Responsive canvas
+        function resizeCanvas() {
+            const maxWidth = window.innerWidth - 40;
+            const maxHeight = window.innerHeight - 200;
+            
+            canvas.width = Math.min(1200, maxWidth);
+            canvas.height = Math.min(700, maxHeight);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game variables
+        let gameRunning = false;
+        let bike = {
+            x: 0,
+            y: 0,
+            speed: 0,
+            maxSpeed: 15,
+            acceleration: 0.3,
+            deceleration: 0.2,
+            nitroSpeed: 25,
+            angle: 0
+        };
+        
+        let road = {
+            offset: 0,
+            speed: 0,
+            segments: []
+        };
+        
+        let obstacles = [];
+        let distance = 0;
+        let gameTime = 0;
+        let score = 0;
+        let maxSpeedReached = 0;
+        let nitroActive = false;
+        let nitroFuel = 100;
+        
+        let keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            shift: false
+        };
+
+        // Initialize stars background
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        function startRace() {
+            startScreen.style.display = 'none';
+            gameRunning = true;
+            
+            // Initialize bike position
+            bike.x = canvas.width / 2;
+            bike.y = canvas.height * 0.8;
+            bike.speed = 0;
+            
+            // Initialize road
+            generateRoadSegments();
+            generateObstacles();
+            
+            // Reset game stats
+            distance = 0;
+            gameTime = 0;
+            score = 0;
+            maxSpeedReached = 0;
+            
+            gameLoop();
+        }
+
+        function generateRoadSegments() {
+            road.segments = [];
+            for (let i = 0; i < 100; i++) {
+                road.segments.push({
+                    x: canvas.width / 2,
+                    y: i * 50,
+                    width: 200 + Math.sin(i * 0.1) * 50
+                });
+            }
+        }
+
+        function generateObstacles() {
+            obstacles = [];
+            for (let i = 0; i < 20; i++) {
+                obstacles.push({
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: -i * 200 - 500,
+                    width: 40,
+                    height: 60,
+                    type: Math.random() > 0.5 ? 'cone' : 'barrier'
+                });
+            }
+        }
+
+        function updateBike() {
+            // Handle acceleration and deceleration
+            if (keys.up) {
+                bike.speed = Math.min(bike.speed + bike.acceleration, nitroActive ? bike.nitroSpeed : bike.maxSpeed);
+            }
+            if (keys.down) {
+                bike.speed = Math.max(bike.speed - bike.deceleration * 2, 0);
+            }
+            if (!keys.up && !keys.down) {
+                bike.speed = Math.max(bike.speed - bike.deceleration * 0.5, 0);
+            }
+
+            // Handle steering
+            if (keys.left && bike.speed > 0) {
+                bike.x -= 8 * (bike.speed / bike.maxSpeed);
+                bike.angle = -0.2;
+            } else if (keys.right && bike.speed > 0) {
+                bike.x += 8 * (bike.speed / bike.maxSpeed);
+                bike.angle = 0.2;
+            } else {
+                bike.angle *= 0.9; // Return to center
+            }
+
+            // Keep bike on screen
+            bike.x = Math.max(50, Math.min(canvas.width - 50, bike.x));
+
+            // Handle nitro
+            if (keys.shift && nitroFuel > 0 && bike.speed > bike.maxSpeed * 0.5) {
+                nitroActive = true;
+                nitroFuel -= 2;
+                nitroIndicator.style.display = 'block';
+                createExhaustParticle();
+            } else {
+                nitroActive = false;
+                nitroIndicator.style.display = 'none';
+                if (nitroFuel < 100) nitroFuel += 0.5;
+            }
+
+            // Update road based on bike speed
+            road.speed = bike.speed;
+            road.offset += road.speed;
+
+            // Update distance and score
+            distance += bike.speed * 0.1;
+            score += Math.floor(bike.speed);
+            maxSpeedReached = Math.max(maxSpeedReached, bike.speed);
+
+            // Update obstacles
+            obstacles.forEach(obstacle => {
+                obstacle.y += road.speed;
+                if (obstacle.y > canvas.height + 100) {
+                    obstacle.y = -Math.random() * 500 - 200;
+                    obstacle.x = Math.random() * (canvas.width - 100) + 50;
+                }
+            });
+        }
+
+        function createExhaustParticle() {
+            if (Math.random() > 0.7) {
+                const particle = document.createElement('div');
+                particle.className = 'exhaust-particle';
+                particle.style.left = bike.x + 'px';
+                particle.style.top = (bike.y + 60) + 'px';
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function drawRoad() {
+            // Draw road surface
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw road markings
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 4;
+            
+            for (let i = 0; i < 20; i++) {
+                const y = (i * 50 + road.offset) % canvas.height;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2 - 2, y);
+                ctx.lineTo(canvas.width / 2 + 2, y + 30);
+                ctx.stroke();
+            }
+
+            // Draw road edges with neon glow
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#00d4ff';
+            ctx.shadowBlur = 10;
+            
+            ctx.beginPath();
+            ctx.moveTo(100, 0);
+            ctx.lineTo(100, canvas.height);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 100, 0);
+            ctx.lineTo(canvas.width - 100, canvas.height);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+        }
+
+        function drawBike() {
+            ctx.save();
+            ctx.translate(bike.x, bike.y);
+            ctx.rotate(bike.angle);
+
+            // Bike shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.beginPath();
+            ctx.ellipse(0, 45, 35, 15, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Rear wheel
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(0, 25, 18, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Rear wheel rim
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 25, 15, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Rear wheel spokes
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * Math.PI) / 3;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(angle) * 5, 25 + Math.sin(angle) * 5);
+                ctx.lineTo(Math.cos(angle) * 15, 25 + Math.sin(angle) * 15);
+                ctx.stroke();
+            }
+
+            // Front wheel
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(0, -25, 16, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Front wheel rim
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, -25, 13, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Front wheel spokes
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * Math.PI) / 3;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(angle) * 4, -25 + Math.sin(angle) * 4);
+                ctx.lineTo(Math.cos(angle) * 13, -25 + Math.sin(angle) * 13);
+                ctx.stroke();
+            }
+
+            // Main frame - bottom tube
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, 25);
+            ctx.lineTo(0, -10);
+            ctx.stroke();
+
+            // Main frame - top tube
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(0, -25);
+            ctx.stroke();
+
+            // Seat tube
+            ctx.strokeStyle = '#ff0080';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(-8, -15);
+            ctx.stroke();
+
+            // Handlebars
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-12, -30);
+            ctx.lineTo(12, -30);
+            ctx.stroke();
+            
+            // Handlebar stem
+            ctx.beginPath();
+            ctx.moveTo(0, -25);
+            ctx.lineTo(0, -30);
+            ctx.stroke();
+
+            // Seat
+            ctx.fillStyle = '#444';
+            ctx.fillRect(-12, -18, 24, 8);
+            ctx.fillStyle = '#666';
+            ctx.fillRect(-10, -17, 20, 6);
+
+            // Fuel tank
+            const tankGradient = ctx.createLinearGradient(-15, -15, 15, 5);
+            tankGradient.addColorStop(0, '#ff0080');
+            tankGradient.addColorStop(0.5, '#00d4ff');
+            tankGradient.addColorStop(1, '#00ff88');
+            
+            ctx.fillStyle = tankGradient;
+            ctx.beginPath();
+            ctx.ellipse(0, -5, 15, 12, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Tank highlights
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(-6, -8, 4, 3, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Exhaust pipe
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(12, 15);
+            ctx.lineTo(20, 25);
+            ctx.stroke();
+            
+            // Exhaust tip
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(20, 25, 3, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Headlight
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(0, -35, 6, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Headlight beam (when moving fast)
+            if (bike.speed > 5) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.beginPath();
+                ctx.moveTo(-8, -35);
+                ctx.lineTo(-15, -60);
+                ctx.lineTo(15, -60);
+                ctx.lineTo(8, -35);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Rider silhouette
+            ctx.fillStyle = '#222';
+            // Helmet
+            ctx.beginPath();
+            ctx.arc(-2, -25, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Body
+            ctx.fillRect(-6, -20, 12, 15);
+            
+            // Arms
+            ctx.fillRect(-15, -18, 8, 4);
+            ctx.fillRect(7, -18, 8, 4);
+            
+            // Legs
+            ctx.fillRect(-8, -8, 6, 12);
+            ctx.fillRect(2, -8, 6, 12);
+
+            // Rider gear details
+            ctx.fillStyle = '#00ff88';
+            ctx.beginPath();
+            ctx.arc(-2, -25, 6, 0, 2 * Math.PI); // Helmet
+            ctx.fill();
+            
+            // Visor
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(-2, -25, 5, 0, Math.PI);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                if (obstacle.y > -100 && obstacle.y < canvas.height + 100) {
+                    ctx.save();
+                    
+                    if (obstacle.type === 'cone') {
+                        // Traffic cone
+                        const gradient = ctx.createLinearGradient(
+                            obstacle.x, obstacle.y,
+                            obstacle.x, obstacle.y + obstacle.height
+                        );
+                        gradient.addColorStop(0, '#ff4444');
+                        gradient.addColorStop(1, '#aa0000');
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y);
+                        ctx.lineTo(obstacle.x, obstacle.y + obstacle.height);
+                        ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Reflective stripes
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(obstacle.x + 5, obstacle.y + 20, obstacle.width - 10, 3);
+                        ctx.fillRect(obstacle.x + 5, obstacle.y + 35, obstacle.width - 10, 3);
+                    } else {
+                        // Barrier
+                        ctx.fillStyle = '#666';
+                        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        
+                        // Reflective tape
+                        ctx.fillStyle = '#ffff00';
+                        ctx.fillRect(obstacle.x, obstacle.y + 5, obstacle.width, 5);
+                        ctx.fillRect(obstacle.x, obstacle.y + obstacle.height - 10, obstacle.width, 5);
+                    }
+                    
+                    ctx.restore();
+                }
+            });
+        }
+
+        function checkCollisions() {
+            for (let obstacle of obstacles) {
+                if (obstacle.y < bike.y + 40 && obstacle.y + obstacle.height > bike.y - 40 &&
+                    obstacle.x < bike.x + 20 && obstacle.x + obstacle.width > bike.x - 20) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateUI() {
+            const speedKmh = Math.floor(bike.speed * 10);
+            speedDisplay.textContent = speedKmh;
+            speedFill.style.width = (speedKmh / (bike.nitroSpeed * 10)) * 100 + '%';
+            
+            distanceDisplay.textContent = Math.floor(distance) + 'm';
+            
+            const minutes = Math.floor(gameTime / 60);
+            const seconds = Math.floor(gameTime % 60);
+            timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            scoreDisplay.textContent = score;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            finalDistance.textContent = Math.floor(distance);
+            topSpeed.textContent = Math.floor(maxSpeedReached * 10);
+            finalScore.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        function restartRace() {
+            gameOverScreen.style.display = 'none';
+            startRace();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            gameTime += 1/60;
+            
+            updateBike();
+            
+            if (checkCollisions()) {
+                gameOver();
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawRoad();
+            drawObstacles();
+            drawBike();
+            updateUI();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'ArrowLeft':
+                    keys.left = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    keys.right = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowUp':
+                    keys.up = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    keys.down = true;
+                    e.preventDefault();
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    keys.shift = true;
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                case 'ArrowLeft':
+                    keys.left = false;
+                    break;
+                case 'ArrowRight':
+                    keys.right = false;
+                    break;
+                case 'ArrowUp':
+                    keys.up = false;
+                    break;
+                case 'ArrowDown':
+                    keys.down = false;
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    keys.shift = false;
+                    break;
+            }
+        });
+
+        // Touch controls for mobile
+        let touchControls = {
+            startX: 0,
+            startY: 0,
+            active: false
+        };
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            touchControls.active = true;
+            touchControls.startX = e.touches[0].clientX;
+            touchControls.startY = e.touches[0].clientY;
+            keys.up = true; // Auto-accelerate on touch
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!touchControls.active) return;
+            
+            const deltaX = e.touches[0].clientX - touchControls.startX;
+            const deltaY = e.touches[0].clientY - touchControls.startY;
+            
+            // Horizontal steering
+            keys.left = deltaX < -30;
+            keys.right = deltaX > 30;
+            
+            // Vertical controls
+            keys.shift = deltaY < -50; // Swipe up for nitro
+            keys.down = deltaY > 50;   // Swipe down for brake
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchControls.active = false;
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+            keys.down = false;
+            keys.shift = false;
+        });
+
+        // Initialize
+        createStars();
+    </script>
+</body>
+</html>

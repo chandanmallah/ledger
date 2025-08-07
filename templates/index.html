@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Portal - Premium Gaming Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: #0a0a0f;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        .bg-mesh {
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+        }
+        
+        .glassmorphism {
+            background: rgba(15, 15, 25, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .game-card {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, rgba(15, 15, 25, 0.8) 0%, rgba(25, 25, 40, 0.9) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+        
+        .game-card:hover::before {
+            left: 100%;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-12px) rotateX(5deg);
+            box-shadow: 
+                0 32px 64px -12px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .game-media {
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .game-media img,
+        .game-media video {
+            transition: transform 0.5s ease;
+        }
+        
+        .game-card:hover .game-media img,
+        .game-card:hover .game-media video {
+            transform: scale(1.1);
+        }
+        
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .game-card:hover .play-overlay {
+            opacity: 1;
+        }
+        
+        .play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .play-button:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .floating-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+            50% { transform: translateY(-100px) rotate(180deg); opacity: 1; }
+        }
+        
+        .hero-glow {
+            background: radial-gradient(circle at center, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 600px;
+            pointer-events: none;
+        }
+        
+        .nav-link {
+            position: relative;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        
+        .nav-link:hover::after {
+            width: 80%;
+        }
+        
+        .stats-counter {
+            animation: countUp 2s ease-out;
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .category-pill {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .category-pill:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-mesh">
+    <!-- Floating Particles Background -->
+    <div class="floating-particles">
+        <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="left: 20%; animation-delay: 1s;"></div>
+        <div class="particle" style="left: 30%; animation-delay: 2s;"></div>
+        <div class="particle" style="left: 40%; animation-delay: 3s;"></div>
+        <div class="particle" style="left: 50%; animation-delay: 4s;"></div>
+        <div class="particle" style="left: 60%; animation-delay: 5s;"></div>
+        <div class="particle" style="left: 70%; animation-delay: 1.5s;"></div>
+        <div class="particle" style="left: 80%; animation-delay: 2.5s;"></div>
+        <div class="particle" style="left: 90%; animation-delay: 3.5s;"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="glassmorphism shadow-2xl relative z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-gamepad text-white text-lg"></i>
+                    </div>
+                    <a href="#" class="text-3xl font-black gradient-text">
+                        GameVerse
+                    </a>
+                </div>
+                
+                <nav class="hidden md:flex items-center space-x-1">
+                    <a href="#" class="nav-link text-gray-300 hover:text-white font-medium">Home</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white font-medium">Games</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white font-medium">Tournaments</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white font-medium">Leaderboard</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white font-medium">Community</a>
+                </nav>
+                
+                <div class="flex items-center space-x-4">
+                    <button class="hidden md:block px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300">
+                        Sign In
+                    </button>
+                    <button class="md:hidden text-gray-300">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-6 py-12 relative z-10">
+        <!-- Hero Section -->
+        <section class="text-center py-20 mb-16 relative">
+            <div class="hero-glow"></div>
+            <div class="relative z-10">
+                <h1 class="text-7xl md:text-8xl font-black gradient-text mb-6 leading-tight">
+                    Game<span class="text-white">Verse</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto mb-8 leading-relaxed">
+                    Immerse yourself in a universe of premium gaming experiences. 
+                    <br class="hidden md:block">
+                    Discover, play, and compete in the most engaging games ever created.
+                </p>
+                
+                <!-- Stats -->
+                <div class="flex flex-wrap justify-center gap-8 mb-12">
+                    <div class="stats-counter">
+                        <div class="text-4xl font-bold text-white">10M+</div>
+                        <div class="text-gray-400 font-medium">Players</div>
+                    </div>
+                    <div class="stats-counter">
+                        <div class="text-4xl font-bold text-white">500+</div>
+                        <div class="text-gray-400 font-medium">Games</div>
+                    </div>
+                    <div class="stats-counter">
+                        <div class="text-4xl font-bold text-white">24/7</div>
+                        <div class="text-gray-400 font-medium">Online</div>
+                    </div>
+                </div>
+                
+                <button class="px-10 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 mb-8">
+                    <i class="fas fa-play mr-2"></i>
+                    Start Gaming Now
+                </button>
+            </div>
+        </section>
+
+        <!-- Game Categories -->
+        <section class="mb-16">
+            <div class="flex flex-wrap justify-center gap-4 mb-12">
+                <div class="category-pill px-6 py-3 rounded-full">
+                    <i class="fas fa-fire mr-2 text-orange-400"></i>Popular
+                </div>
+                <div class="category-pill px-6 py-3 rounded-full">
+                    <i class="fas fa-puzzle-piece mr-2 text-green-400"></i>Puzzle
+                </div>
+                <div class="category-pill px-6 py-3 rounded-full">
+                    <i class="fas fa-car mr-2 text-blue-400"></i>Racing
+                </div>
+                <div class="category-pill px-6 py-3 rounded-full">
+                    <i class="fas fa-crosshairs mr-2 text-red-400"></i>Action
+                </div>
+                <div class="category-pill px-6 py-3 rounded-full">
+                    <i class="fas fa-brain mr-2 text-purple-400"></i>Strategy
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Games Grid -->
+        <section>
+            <h2 class="text-5xl font-bold text-center mb-4 gradient-text">Featured Games</h2>
+            <p class="text-center text-gray-400 text-xl mb-16">Handpicked premium experiences just for you</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
+                <!-- Enhanced Snake Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <img src="https://images.unsplash.com/photo-1614294148960-9aa740632a87?w=400&h=200&fit=crop" 
+                             alt="Snake Game" 
+                             class="w-full h-full object-cover rounded-xl">
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            HOT
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors">Enhanced Snake</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.8</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            Experience the classic snake game reimagined with stunning visuals, power-ups, and competitive gameplay modes.
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">Arcade</span>
+                            <span class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">Classic</span>
+                        </div>
+                        <a href="/snake-game" 
+                           class="block w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Retro Tetris Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <img src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=200&fit=crop" 
+                             alt="Tetris Game" 
+                             class="w-full h-full object-cover rounded-xl">
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            CLASSIC
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">Retro Tetris</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.9</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            The ultimate puzzle challenge! Clear lines by arranging falling blocks in this timeless classic with modern enhancements.
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium">Puzzle</span>
+                            <span class="px-3 py-1 bg-pink-500/20 text-pink-400 rounded-full text-sm font-medium">Retro</span>
+                        </div>
+                        <a href="immersive://retro-tetris" 
+                           class="block w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Memory Match Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <img src="https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?w=400&h=200&fit=crop" 
+                             alt="Memory Game" 
+                             class="w-full h-full object-cover rounded-xl">
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            BRAIN
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors">Memory Match</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.7</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            Challenge your memory and concentration! Flip cards to find matching pairs in this beautifully crafted brain trainer.
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">Memory</span>
+                            <span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-sm font-medium">Family</span>
+                        </div>
+                        <a href="immersive://memory-match" 
+                           class="block w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Modern Bike Race Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <video autoplay muted loop class="w-full h-full object-cover rounded-xl">
+                            <source src="https://player.vimeo.com/external/371433846.sd.mp4?s=236da2f3c0fd273d2c6d9a064f3ae35579b2bbdf&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
+                        </video>
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            NEW
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-red-300 transition-colors">Modern Bike Race</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.6</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            High-octane motorcycle racing through dynamic environments. Master the controls and survive the ultimate speed challenge!
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-medium">Racing</span>
+                            <span class="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm font-medium">3D</span>
+                        </div>
+                        <a href="/bike-race-game" 
+                           class="block w-full py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Space Shooter Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <img src="https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400&h=200&fit=crop" 
+                             alt="Space Game" 
+                             class="w-full h-full object-cover rounded-xl">
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-cyan-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            EPIC
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-cyan-300 transition-colors">Galactic Defender</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.9</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            Defend Earth from alien invasions in this intense space shooter with stunning graphics and epic boss battles.
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-sm font-medium">Action</span>
+                            <span class="px-3 py-1 bg-teal-500/20 text-teal-400 rounded-full text-sm font-medium">Sci-Fi</span>
+                        </div>
+                        <a href="immersive://galactic-defender" 
+                           class="block w-full py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Tower Defense Game -->
+                <div class="game-card rounded-2xl p-6 group">
+                    <div class="game-media mb-6 relative">
+                        <img src="https://images.unsplash.com/photo-1560419015-7c427e8ae5ba?w=400&h=200&fit=crop" 
+                             alt="Strategy Game" 
+                             class="w-full h-full object-cover rounded-xl">
+                        <div class="play-overlay rounded-xl">
+                            <div class="play-button">
+                                <i class="fas fa-play text-gray-800 text-xl ml-1"></i>
+                            </div>
+                        </div>
+                        <div class="absolute top-3 right-3 bg-emerald-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            STRATEGY
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-2xl font-bold text-white group-hover:text-emerald-300 transition-colors">Tower Defense Pro</h3>
+                            <div class="flex items-center space-x-1">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                <span class="text-gray-300 font-medium">4.8</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 leading-relaxed">
+                            Strategic tower placement meets epic battles. Build your defenses and protect your base from endless enemy waves.
+                        </p>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-medium">Strategy</span>
+                            <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">Defense</span>
+                        </div>
+                        <a href="immersive://tower-defense-pro" 
+                           class="block w-full py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl font-bold text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-gamepad mr-2"></i>Play Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="text-center py-16 glassmorphism rounded-3xl">
+            <h3 class="text-4xl font-bold mb-6 gradient-text">Ready to Level Up?</h3>
+            <p class="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                Join millions of players in the ultimate gaming experience. Compete, achieve, and become legendary.
+            </p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <button class="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                    <i class="fas fa-user-plus mr-2"></i>Create Account
+                </button>
+                <button class="px-8 py-4 border-2 border-white/20 text-white rounded-full font-bold hover:bg-white/10 hover:scale-105 transition-all duration-300">
+                    <i class="fas fa-trophy mr-2"></i>View Leaderboard
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glassmorphism border-t border-white/10 mt-16">
+        <div class="container mx-auto px-6 py-12">

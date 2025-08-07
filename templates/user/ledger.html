@@ -76,10 +76,84 @@
     </div>
 
 {% else %}
-    <!-- Ledger Balance Card -->
+    <!-- Quick Add Transaction Form - Top of page -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus me-2"></i>Quick Add Transaction
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="quickAddForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
+                        {{ form.hidden_tag() }}
+                        {{ form.ledger_id() }}
+                        
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="{{ form.description.id }}" class="form-label fw-bold">
+                                    {{ form.description.label }}
+                                </label>
+                                {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.description.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label for="{{ form.amount.id }}" class="form-label fw-bold">
+                                    {{ form.amount.label }}
+                                </label>
+                                {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
+                                {% if form.amount.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.amount.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if not is_dummy %}
+                            <div class="col-md-2">
+                                <label for="{{ form.connected_user.id }}" class="form-label fw-bold">
+                                    {{ form.connected_user.label }}
+                                </label>
+                                {{ form.connected_user(class="form-control") }}
+                                {% if form.connected_user.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.connected_user.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="col-md-2">
+                                <label for="{{ form.transaction_type.id }}" class="form-label fw-bold">Transaction Type</label>
+                                {{ form.transaction_type(class="form-select") }}
+                            </div>
+                            
+                            <div class="col-md-3">
+                                {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Card -->
     <div class="row mb-4">
         <div class="col-md-6 mx-auto">
-            <div class="card text-center" id="balanceCard">
+            <div class="card text-center border-success" id="balanceCard">
                 <div class="card-body">
                     <h5 class="card-title" id="balanceTitle">Current Balance</h5>
                     <p class="balance-display {% if balance >= 0 %}positive{% else %}negative{% endif %}" id="balanceAmount">
@@ -91,62 +165,81 @@
         </div>
     </div>
 
+    <!-- Transactions Section -->
     <div class="row">
-        <!-- Transaction List -->
-        <div class="col-lg-8 mb-4">
+        <div class="col-12">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Transaction History
-                    </h5>
-                    <!-- Search and Filter Bar -->
-                    <div class="d-flex align-items-center gap-2">
-                        <!-- Username Search -->
-                        <div class="input-group" style="width: 200px;">
-                            <input type="text" class="form-control form-control-sm" 
-                                   id="userSearchInput" 
-                                   placeholder="Search by username..." 
-                                   autocomplete="off">
+                <!-- Search and Filter Header -->
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2"></i>Transaction History
+                            </h5>
                         </div>
-                        
-                        <!-- Date Range Filter -->
-                        <div class="d-flex align-items-center gap-1">
-                            <input type="date" class="form-control form-control-sm" 
-                                   id="fromDate" 
-                                   title="From Date">
-                            <span class="text-muted small">to</span>
-                            <input type="date" class="form-control form-control-sm" 
-                                   id="toDate" 
-                                   title="To Date">
+                        <div class="col-md-6">
+                            <!-- Collapsible Search Filters -->
+                            <div class="d-flex justify-content-end">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters">
+                                    <i class="fas fa-search me-1"></i>Search & Filter
+                                </button>
+                            </div>
                         </div>
-                        
-                        <!-- Clear All Filters Button -->
-                        <button class="btn btn-outline-secondary btn-sm" type="button" id="clearAllFilters">
-                            <i class="fas fa-times"></i> Clear All
-                        </button>
+                    </div>
+                    
+                    <!-- Collapsible Search Section -->
+                    <div class="collapse mt-3" id="searchFilters">
+                        <div class="row g-3 p-3 bg-dark text-white rounded">
+                            <div class="col-md-4">
+                                <label class="form-label small">Search by username</label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       id="userSearchInput" 
+                                       placeholder="Enter username...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">From Date</label>
+                                <input type="date" class="form-control form-control-sm" id="fromDate">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">To Date</label>
+                                <input type="date" class="form-control form-control-sm" id="toDate">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-outline-secondary btn-sm w-100" id="clearAllFilters">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Search Results Info -->
-                <div id="searchInfo" class="px-3 py-2 bg-light border-bottom" style="display: none;">
-                    <span id="searchResultText" style="color: black;"></span>
-                    <div id="activeFilters" class="mt-1" style="display: none;">
+                <!-- <div id="searchInfo" class="px-3 py-2 bg-light border-bottom" style="display: none;"> -->
+                <div id="searchInfo" class="px-3 py-2 bg-dark text-white border-bottom" style="display: none;"></div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span id="searchResultText" class="text-dark"></span>
+                        <button class="btn btn-sm btn-outline-secondary" id="clearSearchBtn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="activeFilters" class="mt-2" style="display: none;">
                         <small class="text-muted">Active filters: </small>
                         <span id="filterTags"></span>
                     </div>
                 </div>
                 
-                <div class="card-body" id="transactionContainer">
+                <!-- Transaction Table -->
+                <div class="card-body p-0" id="transactionContainer">
                     {% if ledger.entries %}
                         <div class="table-responsive">
-                            <table class="table table-hover" id="transactionTable">
-                                <thead>
+                            <table class="table table-hover mb-0" id="transactionTable">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Description</th>
-                                        <th>Connected User</th>
-                                        <th>Amount</th>
-                                        <th>Type</th>
+                                        <th class="border-0">Date</th>
+                                        <th class="border-0">Description</th>
+                                        <th class="border-0">Connected User</th>
+                                        <th class="border-0">Amount</th>
+                                        <th class="border-0">Type</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionTableBody">
@@ -177,92 +270,115 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-info" role="alert">
+                        <div class="alert alert-info m-3" role="alert">
                             <h4 class="alert-heading">No Transactions Yet</h4>
                             <p>This ledger doesn't have any transactions.</p>
                             <hr>
-                            <p class="mb-0">Use the form on the right to add your first transaction.</p>
+                            <p class="mb-0">Use the quick add form above to add your first transaction.</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
-        <!-- Add Transaction Form -->
-        <div class="col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
+    </div>
+
+    <!-- Floating Add Button (Mobile) -->
+    <button class="btn btn-primary position-fixed" 
+            style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000; display: none;" 
+            id="floatingAddBtn"
+            data-bs-toggle="modal" 
+            data-bs-target="#addTransactionModal">
+        <i class="fas fa-plus fa-lg"></i>
+    </button>
+
+    <!-- Add Transaction Modal (Mobile) -->
+    <div class="modal fade" id="addTransactionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
                         <i class="fas fa-plus me-2"></i>Add Transaction
                     </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="card-body">
-                    <form id="ledgerEntryForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
+                <div class="modal-body">
+                    <form id="mobileTransactionForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
                         {{ form.hidden_tag() }}
                         {{ form.ledger_id() }}
                         
                         <div class="mb-3">
-                            <label for="{{ form.description.id }}" class="form-label">
-                                {{ form.description.label }}
-                            </label>
+                            <label class="form-label">{{ form.description.label }}</label>
                             {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
-                            {% if form.description.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.description.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="{{ form.amount.id }}" class="form-label">
-                                {{ form.amount.label }}
-                            </label>
+                            <label class="form-label">{{ form.amount.label }}</label>
                             {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
-                            {% if form.amount.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.amount.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         {% if not is_dummy %}
                         <div class="mb-3">
-                            <label for="{{ form.connected_user.id }}" class="form-label">
-                                {{ form.connected_user.label }}
-                            </label>
+                            <label class="form-label">{{ form.connected_user.label }}</label>
                             {{ form.connected_user(class="form-control") }}
-                            {% if form.connected_user.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.connected_user.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         {% endif %}
                         
                         <div class="mb-3">
-                            <label for="{{ form.transaction_type.id }}" class="form-label">Transaction Type</label>
+                            <label class="form-label">Transaction Type</label>
                             {{ form.transaction_type(class="form-select") }}
                         </div>
-                        
-                        <div class="d-grid">
-                            {{ form.submit(class="btn btn-primary") }}
-                        </div>
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="mobileSubmitBtn">Add Transaction</button>
                 </div>
             </div>
         </div>
     </div>
 {% endif %}
 
+<style>
+.balance-display {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 0;
+}
+.balance-display.positive {
+    color: #198754;
+}
+.balance-display.negative {
+    color: #dc3545;
+}
+.transaction-credit {
+    color: #198754;
+    font-weight: 600;
+}
+.transaction-debit {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    #floatingAddBtn {
+        display: block !important;
+    }
+    .card-header .row {
+        flex-direction: column;
+    }
+    .card-header .row .col-md-6:last-child {
+        margin-top: 10px;
+    }
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    {% if action != "create" %}
+    // Only run functionality if we're not in create mode
+    const ledgerId = {{ ledger.id }};
+    
     const searchInput = document.getElementById('userSearchInput');
     const fromDateInput = document.getElementById('fromDate');
     const toDateInput = document.getElementById('toDate');
@@ -278,10 +394,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const balanceAmount = document.getElementById('balanceAmount');
     const balanceSubtext = document.getElementById('balanceSubtext');
     
+    // Mobile elements
+    const mobileSubmitBtn = document.getElementById('mobileSubmitBtn');
+    const mobileForm = document.getElementById('mobileTransactionForm');
+    
     let searchTimeout;
     let originalTableContent = tableBody ? tableBody.innerHTML : '';
     let originalBalance = balanceAmount ? balanceAmount.textContent : '';
     let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
+    
+    // Mobile form submission
+    if (mobileSubmitBtn && mobileForm) {
+        mobileSubmitBtn.addEventListener('click', function() {
+            mobileForm.submit();
+        });
+    }
     
     // Get current filters
     function getCurrentFilters() {
@@ -342,7 +469,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filters.toDate) params.append('to_date', filters.toDate);
         
         // Make API call
-        const ledgerId = {{ ledger.id }};
         const apiUrl = `/ledger/${ledgerId}/search?${params.toString()}`;
         
         fetch(apiUrl)
@@ -539,6 +665,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (clearAllFiltersBtn) {
         clearAllFiltersBtn.addEventListener('click', showAllTransactions);
     }
+    
+    // Clear search button
+    document.getElementById('clearSearchBtn')?.addEventListener('click', function() {
+        showAllTransactions();
+    });
+    
+    {% endif %}
 });
 </script>
 
