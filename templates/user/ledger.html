@@ -30,7 +30,6 @@
 </div>
 
 {% if action == "create" %}
-    <!-- Create Ledger Form -->
     <div class="row">
         <div class="col-md-8 mx-auto">
             <div class="card">
@@ -76,81 +75,6 @@
     </div>
 
 {% else %}
-    <!-- Quick Add Transaction Form - Top of page -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-plus me-2"></i>Quick Add Transaction
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form id="quickAddForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
-                        {{ form.hidden_tag() }}
-                        {{ form.ledger_id() }}
-                        
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
-                                <label for="{{ form.description.id }}" class="form-label fw-bold">
-                                    {{ form.description.label }}
-                                </label>
-                                {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
-                                {% if form.description.errors %}
-                                    <div class="text-danger">
-                                        {% for error in form.description.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="{{ form.amount.id }}" class="form-label fw-bold">
-                                    {{ form.amount.label }}
-                                </label>
-                                {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
-                                {% if form.amount.errors %}
-                                    <div class="text-danger">
-                                        {% for error in form.amount.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            {% if not is_dummy %}
-                            <div class="col-md-2">
-                                <label for="{{ form.connected_user.id }}" class="form-label fw-bold">
-                                    {{ form.connected_user.label }}
-                                </label>
-                                {{ form.connected_user(class="form-control") }}
-                                {% if form.connected_user.errors %}
-                                    <div class="text-danger">
-                                        {% for error in form.connected_user.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            
-                            <div class="col-md-2">
-                                <label for="{{ form.transaction_type.id }}" class="form-label fw-bold">Transaction Type</label>
-                                {{ form.transaction_type(class="form-select") }}
-                            </div>
-                            
-                            <div class="col-md-3">
-                                {{ form.submit(class="btn btn-primary btn-lg w-100") }}
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Balance Card -->
     <div class="row mb-4">
         <div class="col-md-6 mx-auto">
             <div class="card text-center border-success" id="balanceCard">
@@ -165,11 +89,9 @@
         </div>
     </div>
 
-    <!-- Transactions Section -->
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <!-- Search and Filter Header -->
                 <div class="card-header">
                     <div class="row align-items-center">
                         <div class="col-md-6">
@@ -178,7 +100,6 @@
                             </h5>
                         </div>
                         <div class="col-md-6">
-                            <!-- Collapsible Search Filters -->
                             <div class="d-flex justify-content-end">
                                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters">
                                     <i class="fas fa-search me-1"></i>Search & Filter
@@ -187,14 +108,13 @@
                         </div>
                     </div>
                     
-                    <!-- Collapsible Search Section -->
                     <div class="collapse mt-3" id="searchFilters">
                         <div class="row g-3 p-3 bg-dark text-white rounded">
                             <div class="col-md-4">
                                 <label class="form-label small">Search by username</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       id="userSearchInput" 
-                                       placeholder="Enter username...">
+                                        id="userSearchInput" 
+                                        placeholder="Enter username...">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small">From Date</label>
@@ -213,9 +133,7 @@
                     </div>
                 </div>
                 
-                <!-- Search Results Info -->
-                <!-- <div id="searchInfo" class="px-3 py-2 bg-light border-bottom" style="display: none;"> -->
-                <div id="searchInfo" class="px-3 py-2 bg-dark text-white border-bottom" style="display: none;"></div>
+                <div id="searchInfo" class="px-3 py-2 bg-dark text-white border-bottom" style="display: none;">
                     <div class="d-flex justify-content-between align-items-center">
                         <span id="searchResultText" class="text-dark"></span>
                         <button class="btn btn-sm btn-outline-secondary" id="clearSearchBtn">
@@ -228,7 +146,6 @@
                     </div>
                 </div>
                 
-                <!-- Transaction Table -->
                 <div class="card-body p-0" id="transactionContainer">
                     {% if ledger.entries %}
                         <div class="table-responsive">
@@ -240,11 +157,12 @@
                                         <th class="border-0">Connected User</th>
                                         <th class="border-0">Amount</th>
                                         <th class="border-0">Type</th>
+                                        <th class="border-0">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionTableBody">
                                     {% for entry in ledger.entries|sort(attribute='date', reverse=true) %}
-                                        <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}">
+                                        <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}" data-entry-id="{{ entry.id }}" data-entry-date="{{ entry.date.isoformat() }}">
                                             <td>{{ entry.date.strftime('%Y-%m-%d %H:%M') }}</td>
                                             <td>{{ entry.description }}</td>
                                             <td>
@@ -264,6 +182,14 @@
                                                     <span class="badge bg-success">Credit</span>
                                                 {% endif %}
                                             </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#transactionModal" 
+                                                        data-entry-id="{{ entry.id }}">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -282,44 +208,101 @@
         </div>
     </div>
 
-    <!-- Floating Add Button (Mobile) -->
     <button class="btn btn-primary position-fixed" 
-            style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000; display: none;" 
+            style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000;" 
             id="floatingAddBtn"
             data-bs-toggle="modal" 
-            data-bs-target="#addTransactionModal">
-        <i class="fas fa-plus fa-lg"></i>
+            data-bs-target="#transactionModal"
+            data-entry-id="0"> <i class="fas fa-plus fa-lg"></i>
     </button>
-
-    <!-- Add Transaction Modal (Mobile) -->
-    <div class="modal fade" id="addTransactionModal" tabindex="-1">
+    
+    <div class="modal fade" id="transactionModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-plus me-2"></i>Add Transaction
+                    <h5 class="modal-title" id="transactionModalTitle">
+                        <i class="fas fa-plus me-2" id="modalIcon"></i>Add New Transaction
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="mobileTransactionForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
+                    <form id="transactionForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
                         {{ form.hidden_tag() }}
                         {{ form.ledger_id() }}
                         
                         <div class="mb-3">
                             <label class="form-label">{{ form.description.label }}</label>
                             {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.description.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">{{ form.amount.label }}</label>
                             {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
+                            {% if form.amount.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.amount.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </div>
                         
                         {% if not is_dummy %}
-                        <div class="mb-3">
-                            <label class="form-label">{{ form.connected_user.label }}</label>
-                            {{ form.connected_user(class="form-control") }}
+                        <div class="mb-3" id="connectedUserGroup">
+                            <label class="form-label">
+                                <i class="fas fa-user me-1"></i>Connected User
+                            </label>
+                            
+                            <!-- Toggle between dropdown and text input -->
+                            <div class="btn-group w-100 mb-2" role="group">
+                                <input type="radio" class="btn-check" name="userInputMode" id="selectExisting" checked autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm" for="selectExisting">
+                                    <i class="fas fa-users"></i> Select Existing
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="userInputMode" id="createNew" autocomplete="off">
+                                <label class="btn btn-outline-success btn-sm" for="createNew">
+                                    <i class="fas fa-user-plus"></i> Add New User
+                                </label>
+                            </div>
+                            
+                            <!-- Existing user dropdown -->
+                            <div id="existingUserDropdown">
+                                {{ form.connected_user(class="form-select") }}
+                            </div>
+                            
+                            <!-- New user text input -->
+                            <div id="newUserInput" style="display: none;">
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="connected_user_input" 
+                                           name="connected_user_input" 
+                                           placeholder="Enter username for new user"
+                                           autocomplete="off">
+                                    <span class="input-group-text" id="usernameCheckIcon">
+                                        <i class="fas fa-circle-notch fa-spin" style="display: none;"></i>
+                                    </span>
+                                </div>
+                                <small class="form-text text-muted" id="usernameHelpText">
+                                    <i class="fas fa-info-circle"></i> A new account will be created automatically
+                                </small>
+                            </div>
+                            
+                            {% if form.connected_user.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.connected_user.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                         
@@ -331,7 +314,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="mobileSubmitBtn">Add Transaction</button>
+                    <button type="button" class="btn btn-primary" id="modalSubmitBtn">Add Transaction</button>
                 </div>
             </div>
         </div>
@@ -359,6 +342,34 @@
     font-weight: 600;
 }
 
+/* Toggle button styles */
+.btn-check:checked + .btn-outline-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: #198754;
+    color: white;
+}
+
+/* New user input styles */
+#newUserInput input {
+    border: 2px dashed #198754;
+}
+
+#newUserInput input:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+}
+
+#usernameCheckIcon {
+    background-color: transparent;
+    border-left: none;
+    border: 2px dashed #198754;
+    border-left: none;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
     #floatingAddBtn {
@@ -372,6 +383,7 @@
     }
 }
 </style>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -388,29 +400,460 @@ document.addEventListener('DOMContentLoaded', function() {
     const activeFilters = document.getElementById('activeFilters');
     const filterTags = document.getElementById('filterTags');
     const tableBody = document.getElementById('transactionTableBody');
-    
-    // Balance card elements
     const balanceTitle = document.getElementById('balanceTitle');
     const balanceAmount = document.getElementById('balanceAmount');
     const balanceSubtext = document.getElementById('balanceSubtext');
-    
-    // Mobile elements
-    const mobileSubmitBtn = document.getElementById('mobileSubmitBtn');
-    const mobileForm = document.getElementById('mobileTransactionForm');
     
     let searchTimeout;
     let originalTableContent = tableBody ? tableBody.innerHTML : '';
     let originalBalance = balanceAmount ? balanceAmount.textContent : '';
     let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
     
-    // Mobile form submission
-    if (mobileSubmitBtn && mobileForm) {
-        mobileSubmitBtn.addEventListener('click', function() {
-            mobileForm.submit();
+    // ----------------------------------------------------------------------
+    // Modal Logic
+    // ----------------------------------------------------------------------
+    const transactionModal = document.getElementById('transactionModal');
+    const modalTitle = document.getElementById('transactionModalTitle');
+    const modalIcon = document.getElementById('modalIcon');
+    const form = document.getElementById('transactionForm');
+    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+    
+    const addUrl = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
+    // Fixed base path to avoid .replace('0', ...) bug with ledger IDs containing '0'
+    const editBasePath = "/ledger/{{ ledger.id }}/edit_entry/"; 
+    
+    // User input mode toggle elements
+    const selectExistingRadio = document.getElementById('selectExisting');
+    const createNewRadio = document.getElementById('createNew');
+    const existingUserDropdown = document.getElementById('existingUserDropdown');
+    const newUserInput = document.getElementById('newUserInput');
+    const connectedUserSelect = document.querySelector('[name="connected_user"]');
+    const connectedUserInputText = document.getElementById('connected_user_input');
+    
+    // Toggle between existing user dropdown and new user input
+    if (selectExistingRadio && createNewRadio) {
+        selectExistingRadio.addEventListener('change', function() {
+            if (this.checked) {
+                existingUserDropdown.style.display = 'block';
+                newUserInput.style.display = 'none';
+                if (connectedUserInputText) connectedUserInputText.value = '';
+                if (connectedUserSelect) connectedUserSelect.disabled = false;
+            }
+        });
+        
+        createNewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                existingUserDropdown.style.display = 'none';
+                newUserInput.style.display = 'block';
+                if (connectedUserSelect) {
+                    connectedUserSelect.value = '0';
+                    connectedUserSelect.disabled = true; // Prevents submitting '0' when creating new
+                }
+            }
         });
     }
     
-    // Get current filters
+    // Real-time username validation
+    let usernameCheckTimeout;
+    if (connectedUserInputText) {
+        connectedUserInputText.addEventListener('input', function() {
+            clearTimeout(usernameCheckTimeout);
+            const username = this.value.trim();
+            const helpText = document.getElementById('usernameHelpText');
+            const checkIcon = document.getElementById('usernameCheckIcon');
+            const spinner = checkIcon.querySelector('.fa-spin');
+            
+            if (!username) {
+                helpText.className = 'form-text text-muted';
+                helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
+                checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
+                return;
+            }
+            
+            if (spinner) spinner.style.display = 'inline-block';
+            
+            usernameCheckTimeout = setTimeout(() => {
+                fetch('/api/check_username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (spinner) spinner.style.display = 'none';
+                    if (data.exists) {
+                        if (data.is_self) {
+                            checkIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+                            helpText.className = 'form-text text-warning';
+                            helpText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> This is your own username';
+                        } else {
+                            checkIcon.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+                            helpText.className = 'form-text text-success';
+                            helpText.innerHTML = '<i class="fas fa-check-circle"></i> User exists (will connect)';
+                        }
+                    } else {
+                        checkIcon.innerHTML = '<i class="fas fa-plus-circle text-success"></i>';
+                        helpText.className = 'form-text text-success';
+                        helpText.innerHTML = '<i class="fas fa-plus-circle"></i> New user will be created';
+                    }
+                })
+                .catch(() => {
+                    if (spinner) spinner.style.display = 'none';
+                    checkIcon.innerHTML = '<i class="fas fa-exclamation-circle text-danger"></i>';
+                });
+            }, 500);
+        });
+    }
+    
+    if (transactionModal) {
+        transactionModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget; 
+            const entryId = button.getAttribute('data-entry-id');
+            const isEdit = entryId && entryId !== '0';
+
+            form.reset();
+            
+            if (isEdit) {
+                modalTitle.textContent = 'Edit Transaction';
+                modalIcon.className = 'fas fa-edit me-2';
+                form.action = editBasePath + entryId; 
+                modalSubmitBtn.textContent = 'Save Changes';
+                fetchEntryData(entryId);
+            } else {
+                modalTitle.textContent = 'Add New Transaction';
+                modalIcon.className = 'fas fa-plus me-2';
+                form.action = addUrl; 
+                modalSubmitBtn.textContent = 'Add Transaction';
+                
+                form.querySelector('[name="transaction_type"]').value = 'debit';
+                if (connectedUserSelect) connectedUserSelect.value = '0';
+                
+                // Ensure form starts in "Select Existing" mode
+                if (selectExistingRadio) {
+                    selectExistingRadio.click(); 
+                }
+            }
+        });
+
+        modalSubmitBtn.addEventListener('click', function() {
+            // Re-enable the select if in create mode so the value '0' is sent if needed,
+            // or ensure the backend prioritizes connected_user_input
+            if (connectedUserSelect) connectedUserSelect.disabled = false;
+            form.submit();
+        });
+    }
+
+    function fetchEntryData(entryId) {
+        fetch(editBasePath + entryId, { method: 'GET' })
+            .then(response => {
+                if (!response.ok) throw new Error('Entry not found');
+                return response.json();
+            })
+            .then(data => {
+                if (data.description) form.querySelector('[name="description"]').value = data.description;
+                if (data.amount) form.querySelector('[name="amount"]').value = data.amount;
+                if (data.connected_user !== undefined && connectedUserSelect) {
+                    connectedUserSelect.value = data.connected_user;
+                }
+                if (data.is_debit !== undefined) {
+                    form.querySelector('[name="transaction_type"]').value = data.is_debit ? 'debit' : 'credit';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Could not load entry data.');
+            });
+    }
+
+    // ----------------------------------------------------------------------
+    // Search & Filter Functions (Existing Logic)
+    // ----------------------------------------------------------------------
+    function performSearch() {
+        const filters = {
+            username: searchInput ? searchInput.value.trim() : '',
+            fromDate: fromDateInput ? fromDateInput.value : '',
+            toDate: toDateInput ? toDateInput.value : ''
+        };
+        
+        if (!filters.username && !filters.fromDate && !filters.toDate) {
+            showAllTransactions();
+            return;
+        }
+        
+        const params = new URLSearchParams();
+        if (filters.username) params.append('username', filters.username);
+        if (filters.fromDate) params.append('from_date', filters.fromDate);
+        if (filters.toDate) params.append('to_date', filters.toDate);
+        
+        fetch(`/ledger/${ledgerId}/search?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let newTableContent = '';
+                    data.results.forEach(userResult => {
+                        userResult.transactions.forEach(transaction => {
+                            newTableContent += buildTransactionRow(transaction, userResult.user);
+                        });
+                    });
+                    tableBody.innerHTML = newTableContent || '<tr><td colspan="6" class="text-center">No results</td></tr>';
+                }
+            });
+    }
+    
+    function buildTransactionRow(transaction, user) {
+        const date = new Date(transaction.created_at).toLocaleString();
+        return `
+            <tr>
+                <td>${date}</td>
+                <td>${transaction.description}</td>
+                <td><span class="badge bg-info">${user ? user.username : '-'}</span></td>
+                <td class="${transaction.is_debit ? 'transaction-debit' : 'transaction-credit'}">
+                    ${transaction.is_debit ? '-' : ''}₹${transaction.amount.toFixed(2)}
+                </td>
+                <td><span class="badge ${transaction.is_debit ? 'bg-danger' : 'bg-success'}">${transaction.is_debit ? 'Debit' : 'Credit'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
+                            data-bs-toggle="modal" data-bs-target="#transactionModal" 
+                            data-entry-id="${transaction.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>`;
+    }
+
+    function showAllTransactions() {
+        if (tableBody) tableBody.innerHTML = originalTableContent;
+        if (searchInput) searchInput.value = '';
+        if (fromDateInput) fromDateInput.value = '';
+        if (toDateInput) toDateInput.value = '';
+    }
+
+    if (searchInput) searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(performSearch, 300);
+    });
+    if (fromDateInput) fromDateInput.addEventListener('change', performSearch);
+    if (toDateInput) toDateInput.addEventListener('change', performSearch);
+    if (clearAllFiltersBtn) clearAllFiltersBtn.addEventListener('click', showAllTransactions);
+
+    {% endif %}
+});
+</script>
+
+<!-- <script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if action != "create" %}
+    // Only run functionality if we're not in create mode
+    const ledgerId = {{ ledger.id }};
+    
+    const searchInput = document.getElementById('userSearchInput');
+    const fromDateInput = document.getElementById('fromDate');
+    const toDateInput = document.getElementById('toDate');
+    const clearAllFiltersBtn = document.getElementById('clearAllFilters');
+    const searchInfo = document.getElementById('searchInfo');
+    const searchResultText = document.getElementById('searchResultText');
+    const activeFilters = document.getElementById('activeFilters');
+    const filterTags = document.getElementById('filterTags');
+    const tableBody = document.getElementById('transactionTableBody');
+    const balanceTitle = document.getElementById('balanceTitle');
+    const balanceAmount = document.getElementById('balanceAmount');
+    const balanceSubtext = document.getElementById('balanceSubtext');
+    
+    let searchTimeout;
+    let originalTableContent = tableBody ? tableBody.innerHTML : '';
+    let originalBalance = balanceAmount ? balanceAmount.textContent : '';
+    let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
+    
+    // ----------------------------------------------------------------------
+    // Modal Logic
+    // ----------------------------------------------------------------------
+    const transactionModal = document.getElementById('transactionModal');
+    const modalTitle = document.getElementById('transactionModalTitle');
+    const modalIcon = document.getElementById('modalIcon');
+    const form = document.getElementById('transactionForm');
+    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+    
+    const addUrl = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
+    const editBasePath = "/ledger/{{ ledger.id }}/edit_entry/"; 
+    
+    // User input mode toggle elements
+    const selectExistingRadio = document.getElementById('selectExisting');
+    const createNewRadio = document.getElementById('createNew');
+    const existingUserDropdown = document.getElementById('existingUserDropdown');
+    const newUserInput = document.getElementById('newUserInput');
+    const connectedUserSelect = document.querySelector('[name="connected_user"]');
+    const connectedUserInputText = document.getElementById('connected_user_input');
+    
+    // Toggle between existing user dropdown and new user input
+    if (selectExistingRadio && createNewRadio) {
+        selectExistingRadio.addEventListener('change', function() {
+            if (this.checked) {
+                existingUserDropdown.style.display = 'block';
+                newUserInput.style.display = 'none';
+                if (connectedUserInputText) connectedUserInputText.value = '';
+                if (connectedUserSelect) connectedUserSelect.disabled = false;
+            }
+        });
+        
+        createNewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                existingUserDropdown.style.display = 'none';
+                newUserInput.style.display = 'block';
+                if (connectedUserSelect) {
+                    connectedUserSelect.value = '0';
+                    connectedUserSelect.disabled = true;
+                }
+            }
+        });
+    }
+    
+    // Real-time username validation
+    let usernameCheckTimeout;
+    if (connectedUserInputText) {
+        connectedUserInputText.addEventListener('input', function() {
+            clearTimeout(usernameCheckTimeout);
+            const username = this.value.trim();
+            const helpText = document.getElementById('usernameHelpText');
+            const checkIcon = document.getElementById('usernameCheckIcon');
+            const spinner = checkIcon.querySelector('.fa-spin');
+            
+            if (!username) {
+                helpText.className = 'form-text text-muted';
+                helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
+                checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
+                return;
+            }
+            
+            // Show loading
+            if (spinner) spinner.style.display = 'inline-block';
+            
+            usernameCheckTimeout = setTimeout(() => {
+                fetch('/api/check_username', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (spinner) spinner.style.display = 'none';
+                    
+                    if (data.exists) {
+                        if (data.is_self) {
+                            checkIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+                            helpText.className = 'form-text text-warning';
+                            helpText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> This is your own username';
+                        } else if (data.is_connected) {
+                            checkIcon.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+                            helpText.className = 'form-text text-success';
+                            helpText.innerHTML = '<i class="fas fa-check-circle"></i> User exists (already connected)';
+                        } else {
+                            checkIcon.innerHTML = '<i class="fas fa-info-circle text-info"></i>';
+                            helpText.className = 'form-text text-info';
+                            helpText.innerHTML = '<i class="fas fa-info-circle"></i> User exists (will auto-connect)';
+                        }
+                    } else {
+                        checkIcon.innerHTML = '<i class="fas fa-plus-circle text-success"></i>';
+                        helpText.className = 'form-text text-success';
+                        helpText.innerHTML = '<i class="fas fa-plus-circle"></i> New user will be created';
+                    }
+                })
+                .catch(error => {
+                    if (spinner) spinner.style.display = 'none';
+                    checkIcon.innerHTML = '<i class="fas fa-exclamation-circle text-danger"></i>';
+                    helpText.className = 'form-text text-danger';
+                    helpText.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error checking username';
+                });
+            }, 500);
+        });
+    }
+    
+    if (transactionModal) {
+        transactionModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget; 
+            const entryId = button.getAttribute('data-entry-id');
+            const isEdit = entryId && entryId !== '0';
+
+            form.reset();
+            
+            if (isEdit) {
+                modalTitle.textContent = 'Edit Transaction';
+                modalIcon.className = 'fas fa-edit me-2';
+                form.action = editBasePath + entryId; 
+                modalSubmitBtn.textContent = 'Save Changes';
+                
+                fetchEntryData(entryId);
+            } else {
+                modalTitle.textContent = 'Add New Transaction';
+                modalIcon.className = 'fas fa-plus me-2';
+                form.action = addUrl; 
+                modalSubmitBtn.textContent = 'Add Transaction';
+                
+                form.querySelector('[name="transaction_type"]').value = 'debit';
+                if (form.querySelector('[name="connected_user"]')) {
+                    form.querySelector('[name="connected_user"]').value = '0';
+                }
+                
+                // Reset to "Select Existing" mode for new entries
+                if (selectExistingRadio) {
+                    selectExistingRadio.checked = true;
+                    existingUserDropdown.style.display = 'block';
+                    newUserInput.style.display = 'none';
+                    if (connectedUserSelect) connectedUserSelect.disabled = false;
+                    if (connectedUserInputText) connectedUserInputText.value = '';
+                    
+                    // Reset validation UI
+                    const helpText = document.getElementById('usernameHelpText');
+                    const checkIcon = document.getElementById('usernameCheckIcon');
+                    if (helpText) {
+                        helpText.className = 'form-text text-muted';
+                        helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
+                    }
+                    if (checkIcon) {
+                        checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
+                    }
+                }
+            }
+        });
+
+        modalSubmitBtn.addEventListener('click', function() {
+            form.submit();
+        });
+    }
+
+    function fetchEntryData(entryId) {
+        fetch(editBasePath + entryId, { method: 'GET' })
+            .then(response => {
+                if (!response.ok) throw new Error('Entry not found');
+                return response.json();
+            })
+            .then(data => {
+                if (data.description) {
+                    form.querySelector('[name="description"]').value = data.description;
+                }
+                if (data.amount) {
+                    form.querySelector('[name="amount"]').value = data.amount;
+                }
+                if (data.connected_user !== undefined) {
+                    const connectedUserField = form.querySelector('[name="connected_user"]');
+                    if (connectedUserField) {
+                        connectedUserField.value = data.connected_user;
+                    }
+                }
+                if (data.is_debit !== undefined) {
+                    form.querySelector('[name="transaction_type"]').value = data.is_debit ? 'debit' : 'credit';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching entry data:', error);
+                alert('Could not load entry data for editing.');
+            });
+    }
+
+    // ----------------------------------------------------------------------
+    // Search/Filter Functions
+    // ----------------------------------------------------------------------
     function getCurrentFilters() {
         return {
             username: searchInput ? searchInput.value.trim() : '',
@@ -419,26 +862,18 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // Check if any filters are active
     function hasActiveFilters() {
         const filters = getCurrentFilters();
         return filters.username || filters.fromDate || filters.toDate;
     }
     
-    // Build filter tags display
     function updateFilterTags() {
         const filters = getCurrentFilters();
         let tags = [];
         
-        if (filters.username) {
-            tags.push(`<span class="badge bg-primary me-1">User: ${filters.username}</span>`);
-        }
-        if (filters.fromDate) {
-            tags.push(`<span class="badge bg-info me-1">From: ${filters.fromDate}</span>`);
-        }
-        if (filters.toDate) {
-            tags.push(`<span class="badge bg-info me-1">To: ${filters.toDate}</span>`);
-        }
+        if (filters.username) tags.push(`<span class="badge bg-primary me-1">User: ${filters.username}</span>`);
+        if (filters.fromDate) tags.push(`<span class="badge bg-info me-1">From: ${filters.fromDate}</span>`);
+        if (filters.toDate) tags.push(`<span class="badge bg-info me-1">To: ${filters.toDate}</span>`);
         
         if (tags.length > 0) {
             filterTags.innerHTML = tags.join('');
@@ -448,30 +883,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Perform search with all filters
     function performSearch() {
         const filters = getCurrentFilters();
-        
         if (!hasActiveFilters()) {
             showAllTransactions();
             return;
         }
         
-        // Show loading state
         searchInfo.style.display = 'block';
         searchResultText.textContent = 'Searching...';
         updateFilterTags();
         
-        // Build query parameters
         const params = new URLSearchParams();
         if (filters.username) params.append('username', filters.username);
         if (filters.fromDate) params.append('from_date', filters.fromDate);
         if (filters.toDate) params.append('to_date', filters.toDate);
         
-        // Make API call
-        const apiUrl = `/ledger/${ledgerId}/search?${params.toString()}`;
-        
-        fetch(apiUrl)
+        fetch(`/ledger/${ledgerId}/search?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -488,59 +916,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function displaySearchResults(data, filters) {
         updateFilterTags();
-        
         if (data.results.length === 0 && data.total_transactions === 0) {
             searchResultText.textContent = 'No transactions found matching the current filters';
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No matching transactions found</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No matching transactions found</td></tr>';
             updateBalanceForNoResults(filters);
             return;
         }
         
-        // Update search info based on filter type
-        let resultText = '';
-        if (filters.username && (filters.fromDate || filters.toDate)) {
-            // Both user and date filters
-            const dateRange = filters.fromDate && filters.toDate 
-                ? `${filters.fromDate} to ${filters.toDate}`
-                : filters.fromDate 
-                    ? `from ${filters.fromDate}`
-                    : `until ${filters.toDate}`;
-            resultText = `Found ${data.total_transactions} transaction(s) for users matching "${filters.username}" ${dateRange}`;
-        } else if (filters.username) {
-            // Only user filter
-            resultText = `Found ${data.total_transactions} transaction(s) for ${data.results.length} user(s) matching "${filters.username}"`;
-        } else {
-            // Only date filter
-            const dateRange = filters.fromDate && filters.toDate 
-                ? `between ${filters.fromDate} and ${filters.toDate}`
-                : filters.fromDate 
-                    ? `from ${filters.fromDate}`
-                    : `until ${filters.toDate}`;
-            resultText = `Found ${data.total_transactions} transaction(s) ${dateRange}`;
-        }
-        
-        searchResultText.textContent = resultText;
-        
-        // Update balance for filtered results
+        searchResultText.textContent = `Found ${data.total_transactions} transaction(s)`;
         updateBalanceForSearch(data, filters);
         
-        // Build new table content
         let newTableContent = '';
-        
         if (data.results && data.results.length > 0) {
-            // User-based results (when username filter is used)
             data.results.forEach(userResult => {
                 userResult.transactions.forEach(transaction => {
                     newTableContent += buildTransactionRow(transaction, userResult.user);
                 });
             });
-        } else if (data.transactions) {
-            // Direct transaction results (when only date filter is used)
-            data.transactions.forEach(transaction => {
-                newTableContent += buildTransactionRow(transaction, transaction.connected_user);
-            });
         }
-        
         tableBody.innerHTML = newTableContent;
     }
     
@@ -553,52 +946,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const userDisplay = user ? `<span class="badge bg-info">${user.username}</span>` : '<span class="text-muted">-</span>';
         
         return `
-            <tr class="search-result-row">
+            <tr>
                 <td>${date}</td>
                 <td>${transaction.description}</td>
                 <td>${userDisplay}</td>
                 <td class="${amountClass}">${amountPrefix}₹${transaction.amount.toFixed(2)}</td>
                 <td><span class="badge ${typeClass}">${typeText}</span></td>
-            </tr>
-        `;
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#transactionModal" 
+                            data-entry-id="${transaction.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>`;
     }
     
     function updateBalanceForSearch(data, filters) {
         const totalBalance = data.total_balance || 0;
-        
-        // Update balance title based on active filters
-        let title = 'Filtered Balance';
-        let subtext = '';
-        
-        if (filters.username && (filters.fromDate || filters.toDate)) {
-            title = `Balance with filtered users`;
-            const dateRange = filters.fromDate && filters.toDate 
-                ? `${filters.fromDate} to ${filters.toDate}`
-                : filters.fromDate 
-                    ? `from ${filters.fromDate}`
-                    : `until ${filters.toDate}`;
-            subtext = `Transactions matching "${filters.username}" ${dateRange}`;
-        } else if (filters.username) {
-            const userCount = data.results ? data.results.length : 0;
-            title = userCount === 1 ? `Balance with ${data.results[0].user.username}` : `Balance with filtered users`;
-            subtext = userCount === 1 
-                ? `All transactions with ${data.results[0].user.username}` 
-                : `Transactions with ${userCount} users matching "${filters.username}"`;
-        } else if (filters.fromDate || filters.toDate) {
-            title = 'Balance for Date Range';
-            const dateRange = filters.fromDate && filters.toDate 
-                ? `${filters.fromDate} to ${filters.toDate}`
-                : filters.fromDate 
-                    ? `from ${filters.fromDate}`
-                    : `until ${filters.toDate}`;
-            subtext = `Transactions ${dateRange}`;
-        }
-        
-        balanceTitle.textContent = title;
+        balanceTitle.textContent = 'Filtered Balance';
         balanceAmount.textContent = `₹${totalBalance.toFixed(2)}`;
         balanceAmount.className = `balance-display ${totalBalance >= 0 ? 'positive' : 'negative'}`;
         balanceSubtext.style.display = 'block';
-        balanceSubtext.textContent = subtext;
     }
     
     function updateBalanceForNoResults(filters) {
@@ -606,7 +976,6 @@ document.addEventListener('DOMContentLoaded', function() {
         balanceAmount.textContent = '₹0.00';
         balanceAmount.className = 'balance-display positive';
         balanceSubtext.style.display = 'block';
-        balanceSubtext.textContent = 'No transactions match the current filters';
     }
     
     function showError(message) {
@@ -616,63 +985,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showAllTransactions() {
-        // Clear all inputs
         if (searchInput) searchInput.value = '';
         if (fromDateInput) fromDateInput.value = '';
         if (toDateInput) toDateInput.value = '';
-        
         searchInfo.style.display = 'none';
         activeFilters.style.display = 'none';
-        
-        // Restore original table content
-        if (tableBody) {
-            tableBody.innerHTML = originalTableContent;
-        }
-        
-        // Restore original balance
+        if (tableBody) tableBody.innerHTML = originalTableContent;
         balanceTitle.textContent = 'Current Balance';
         balanceAmount.textContent = originalBalance;
         balanceAmount.className = originalBalanceClass;
         balanceSubtext.style.display = 'none';
     }
     
-    // Event listeners
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                performSearch();
-            }, 300); // Debounce search
-        });
-        
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                clearTimeout(searchTimeout);
-                performSearch();
-            }
+            searchTimeout = setTimeout(performSearch, 300);
         });
     }
-    
-    if (fromDateInput) {
-        fromDateInput.addEventListener('change', performSearch);
-    }
-    
-    if (toDateInput) {
-        toDateInput.addEventListener('change', performSearch);
-    }
-    
-    if (clearAllFiltersBtn) {
-        clearAllFiltersBtn.addEventListener('click', showAllTransactions);
-    }
-    
-    // Clear search button
-    document.getElementById('clearSearchBtn')?.addEventListener('click', function() {
-        showAllTransactions();
-    });
+    if (fromDateInput) fromDateInput.addEventListener('change', performSearch);
+    if (toDateInput) toDateInput.addEventListener('change', performSearch);
+    if (clearAllFiltersBtn) clearAllFiltersBtn.addEventListener('click', showAllTransactions);
+    document.getElementById('clearSearchBtn')?.addEventListener('click', showAllTransactions);
     
     {% endif %}
 });
-</script>
+</script> -->
 
 {% endblock %}

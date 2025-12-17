@@ -348,7 +348,7 @@ p {
 
 .balance-display.positive {
     color: var(--success-color);
-    text-shadow: 0 0 10px rgba(0, 212, 170, 0.3);
+    text-shadow: 0 0 10px rgba(0, 212, 184, 0.432);
 }
 
 .balance-display.negative {
@@ -461,7 +461,7 @@ p {
 
 /* Compact Form Controls */
 .form-control, .form-select {
-    background: var(--glass-bg);
+    /* background: var(--glass-bg); */
     backdrop-filter: blur(10px);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
@@ -473,7 +473,7 @@ p {
 }
 
 .form-control:focus, .form-select:focus {
-    background: var(--glass-medium);
+    /* background: var(--glass-medium); */
     border-color: var(--accent-primary);
     color: var(--text-primary);
     box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);

@@ -1,200 +1,151 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2>
-            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-        </h2>
-        <p class="lead">
-            {% if is_dummy %}
-                <span class="badge bg-dark"><i class="fas fa-moon"></i></span>
-            {% else %}
-                <span class="badge bg-light text-dark"><i class="fas fa-sun"></i></span>
-            {% endif %}
-            Welcome to your personal dashboard
-        </p>
+<div class="container-fluid py-3">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="mb-1"><i class="fas fa-palette me-2"></i>Dashboard</h2>
+            <div class="d-flex align-items-center gap-2">
+                {% if is_dummy %}
+                    <span class="badge bg-dark border border-secondary text-secondary small">
+                        <i class="fas fa-moon me-1"></i>FREE ENTRY MODE
+                    </span>
+                {% else %}
+                    <span class="badge bg-light border border-info text-info small">
+                        <i class="fas fa-cog fa-spin me-1"></i>STANDARD MODE
+                    </span>
+                {% endif %}
+                <p class="mb-0 text-secondary">Welcome back, <strong>{{ current_user.username }}</strong>.</p>
+            </div>
+        </div>
     </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card dashboard-card mb-4">
-            <div class="card-body text-center">
-                <h5 class="card-title">
-                    <i class="fas fa-wallet me-2"></i>Total Balance
-                </h5>
-                <p class="display-4 mb-0 {% if total_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="dashboard-card stats-card">
+                <p class="text-uppercase small text-muted">Total Balance</p>
+                <h3 class="balance-display {% if total_balance >= 0 %}positive{% else %}negative{% endif %}">
                     ₹{{ "{:,.2f}".format(total_balance) }}
-                </p>
-                <p class="card-text text-muted">
-                    Across all ledgers
-                </p>
+                </h3>
+                <p class="small text-muted mb-0">Across all ledgers</p>
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card dashboard-card mb-4">
-            <div class="card-body text-center">
-                <h5 class="card-title">
-                    <i class="fas fa-book me-2"></i>Your Ledgers
-                </h5>
-                <p class="display-4 mb-0">
-                    {{ ledgers|length }}
-                </p>
-                <p class="card-text text-muted">
-                    Active ledger accounts
-                </p>
-            </div>
-            <div class="card-footer">
-                <a href="{{ url_for('create_ledger') }}" class="btn btn-outline-primary btn-sm w-100">
-                    <i class="fas fa-plus me-1"></i>Create New Ledger
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    {% if not is_dummy %}
-    <div class="col-md-4">
-        <div class="card dashboard-card mb-4">
-            <div class="card-body text-center">
-                <h5 class="card-title">
-                    <i class="fas fa-bell me-2"></i>Connection Requests
-                </h5>
-                <p class="display-4 mb-0">
-                    {{ pending_requests|length }}
-                </p>
-                <p class="card-text text-muted">
-                    Pending connection requests
-                </p>
-            </div>
-            <div class="card-footer">
-                <a href="{{ url_for('manage_connections') }}" class="btn btn-outline-primary btn-sm w-100">
-                    <i class="fas fa-link me-1"></i>Manage Connections
-                </a>
-            </div>
-        </div>
-    </div>
-    {% else %}
-    <div class="col-md-4">
-        <div class="card dashboard-card mb-4">
-            <div class="card-body text-center">
-                <h5 class="card-title">
-                    <i class="fas fa-shield-alt me-2"></i>Free Entry Mode
-                </h5>
-                <p class="card-text mt-3">
-                    <i class="fas fa-moon fa-2x mb-2"></i><br>
-                    Create any ledger entries you want without constraints
-                </p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
 
-<div class="row">
-    <div class="col-12 mb-4">        
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-history me-2"></i>Recent Transactions
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if recent_transactions %}
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                    <th>Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for transaction in recent_transactions %}
-                                    <tr>
-                                        <td>{{ transaction.date.strftime('%Y-%m-%d') }}</td>
-                                        <td>{{ transaction.description }}</td>
-                                        <td class="{% if transaction.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
-                                            {% if transaction.is_debit %}-{% endif %}₹{{ "{:,.2f}".format(transaction.amount) }}
-                                        </td>
-                                        <td>
-                                            {% if transaction.is_debit %}
-                                                <span class="badge bg-danger">Debit</span>
-                                            {% else %}
-                                                <span class="badge bg-success">Credit</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="text-center">No recent transactions found.</p>
-                {% endif %}
-            </div>
-            <div class="card-footer text-end">
-                {% if ledgers %}
-                    <a href="{{ url_for('view_ledger', ledger_id=ledgers[0].id) }}" class="btn btn-sm btn-outline-primary">
-                        View All Transactions
-                    </a>
-                {% else %}
-                    <a href="{{ url_for('create_ledger') }}" class="btn btn-sm btn-outline-primary">
-                        Create a Ledger
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-book me-2"></i>Your Ledgers
-                </h5>
-            </div>
-            
-            <div id="ledger-list-container">
+        <div class="col-md-3">
+            <div class="dashboard-card border-info border-2 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                <p class="text-info text-uppercase small fw-bold mb-2">User Reports</p>
+                <div class="mb-3">
+                    <i class="fas fa-chart-pie fa-3x text-info opacity-75"></i>
                 </div>
+                <a href="{{ url_for('user_summary') }}" class="btn btn-secondary btn-sm w-100 py-2 border-info">
+                    <i class="fas fa-search me-1 text-info"></i> SUMMARY BY USER
+                </a>
+            </div>
+        </div>
 
+        <div class="col-md-3 text-center">
+            <div class="dashboard-card stats-card h-100">
+                <p class="text-uppercase small text-muted">Active Ledgers</p>
+                <h3 class="display-6 fw-bold mb-2">{{ ledgers|length }}</h3>
+                <a href="{{ url_for('create_ledger') }}" class="text-decoration-none small text-info">
+                    <i class="fas fa-plus me-1"></i> NEW LEDGER
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-3 text-center">
+            <div class="dashboard-card stats-card h-100">
+                <p class="text-uppercase small text-muted">Connections</p>
+                <h3 class="display-6 fw-bold mb-2">
+                    {% if not is_dummy %}{{ pending_requests|length }}{% else %}0{% endif %}
+                    <span class="fs-6 text-muted">Pending</span>
+                </h3>
+                {% if not is_dummy %}
+                <a href="{{ url_for('manage_connections') }}" class="btn btn-sm btn-outline-secondary px-3">
+                    <i class="fas fa-users me-1"></i> MANAGE
+                </a>
+                {% else %}
+                <span class="badge bg-dark text-muted">LOCKED</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-history me-2 text-info"></i>Recent Transactions</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                            <tr>
+                                <td class="text-muted small">{{ transaction.date.strftime('%d %b') }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ transaction.description }}</div>
+                                    <div class="x-small text-muted">In: {{ transaction.ledger.name }}</div>
+                                </td>
+                                <td class="{% if transaction.is_debit %}transaction-debit{% else %}transaction-credit{% endif %}">
+                                    {% if transaction.is_debit %}-{% endif %}₹{{ "{:,.2f}".format(transaction.amount) }}
+                                </td>
+                                <td>
+                                    <span class="badge {% if transaction.is_debit %}bg-danger{% else %}bg-success{% endif %} rounded-pill">
+                                        {{ 'DEBIT' if transaction.is_debit else 'CREDIT' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-transparent border-0 text-end">
+                    <a href="#" class="text-info text-decoration-none small">
+                        VIEW DETAILED LEDGER <i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-book me-2 text-info"></i>Your Ledgers
+                </div>
+                <div class="card-body" id="ledger-list-container">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-info spinner-border-sm" role="status"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    <script>
-        document.addEventListener('DOMContentLoaded', (event) => {
-            // Load the first page of ledgers when the page is ready
-            loadLedgers(1); 
-        });
+<script>
+    document.addEventListener('DOMContentLoaded', () => { loadLedgers(1); });
 
-        function loadLedgers(page) {
-            const container = document.getElementById('ledger-list-container');
-            // This is the URL for the partial view
-            const url = `{{ url_for('get_ledgers', page=999) }}`.replace('999', page);
-            
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    container.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('There was a problem with the fetch operation:', error);
-                });
-        }
-    </script>
+    function loadLedgers(page) {
+        const container = document.getElementById('ledger-list-container');
+        const url = `{{ url_for('get_ledgers', page=999) }}`.replace('999', page);
+        
+        fetch(url)
+            .then(res => res.text())
+            .then(html => { container.innerHTML = html; })
+            .catch(() => {
+                container.innerHTML = '<p class="text-danger text-center">Failed to load ledgers.</p>';
+            });
+    }
+</script>
 {% endblock %}

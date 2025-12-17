@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, FloatField, HiddenField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 from models import User
+from wtforms.validators import DataRequired, Length, Optional
 
 
 class LoginForm(FlaskForm):
@@ -42,6 +43,17 @@ class LedgerForm(FlaskForm):
     submit = SubmitField('Create Ledger')
 
 
+# class LedgerEntryForm(FlaskForm):
+#     description = StringField('Description', validators=[DataRequired(), Length(max=200)])
+#     amount = FloatField('Amount', validators=[DataRequired()])
+#     transaction_type = SelectField('Transaction Type', choices=[
+#         ('debit', 'Debit (money leaving your account)'),
+#         ('credit', 'Credit (money coming into your account)')
+#     ], default='debit')
+#     connected_user = SelectField('Connected User', validators=[DataRequired()], coerce=int)
+#     ledger_id = HiddenField('Ledger ID')
+#     submit = SubmitField('Add Entry')
+
 class LedgerEntryForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=200)])
     amount = FloatField('Amount', validators=[DataRequired()])
@@ -49,7 +61,11 @@ class LedgerEntryForm(FlaskForm):
         ('debit', 'Debit (money leaving your account)'),
         ('credit', 'Credit (money coming into your account)')
     ], default='debit')
-    connected_user = SelectField('Connected User', validators=[DataRequired()], coerce=int)
+    
+    # CHANGE: Use Optional() instead of DataRequired()
+    # This allows the form to validate even when connected_user is 0
+    connected_user = SelectField('Connected User', validators=[Optional()], coerce=int)
+    
     ledger_id = HiddenField('Ledger ID')
     submit = SubmitField('Add Entry')
 

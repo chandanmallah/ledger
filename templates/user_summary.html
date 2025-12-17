@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-chart-line me-2"></i>User Transaction Summary</h2>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('user_summary') }}" class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Search Connected User</label>
+                    <input type="text" name="username" class="form-control" placeholder="Enter username..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Ledger</label>
+                    <select name="ledger_id" class="form-select">
+                        <option value="">All Ledgers (Combined)</option>
+                        {% for ledger in user_ledgers %}
+                        <option value="{{ ledger.id }}" {% if ledger.id == selected_ledger_id %}selected{% endif %}>
+                            {{ ledger.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i> Get Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if user_data %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-danger text-white border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Total You Gave (Debit)</h6>
+                    <h3>₹{{ "{:,.2f}".format(user_data.total_debit) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-success text-white border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Total You Received (Credit)</h6>
+                    <h3>₹{{ "{:,.2f}".format(user_data.total_credit) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card {% if user_data.net_balance >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Net Balance ({{ user_data.ledger_name }})</h6>
+                    <h3>₹{{ "{:,.2f}".format(user_data.net_balance) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark py-3">
+            <h5 class="mb-0">Transaction History with <strong>{{ user_data.user.username }}</strong></h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Ledger</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in user_data.transactions %}
+                    <tr>
+                        <td>{{ t.date.strftime('%Y-%m-%d') }}</td>
+                        <td><span class="badge bg-secondary opacity-75">{{ t.ledger.name }}</span></td>
+                        <td>{{ t.description }}</td>
+                        <td>
+                            {% if t.is_debit %}
+                            <span class="text-danger fw-bold"><i class="fas fa-arrow-up me-1"></i>DEBIT</span>
+                            {% else %}
+                            <span class="text-success fw-bold"><i class="fas fa-arrow-down me-1"></i>CREDIT</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">₹{{ "{:,.2f}".format(t.amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 border rounded bg-dark">
+        <i class="fas fa-user-friends fa-3x text-muted mb-3"></i>
+        <p class="text-muted">No results to show. Search for a connected user to see their transaction history across your ledgers.</p>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

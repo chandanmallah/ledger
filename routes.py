@@ -6,11 +6,15 @@ from sqlalchemy import and_, or_
 
 from app import app, db
 from models import User, Ledger, LedgerEntry, Connection
+
+from flask import request, flash, redirect, url_for, render_template
+from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash
+from functools import wraps
+
 from forms import (LoginForm, UserCreationForm, LedgerForm, LedgerEntryForm, 
                   ConnectionRequestForm, ProfileUpdateForm)
 
-
-# Helper functions
 def is_using_dummy():
     """Check if the currently logged in user is using dummy data view"""
     if current_user.is_authenticated:
@@ -37,9 +41,6 @@ def snake_game():
 def main_page():
     return render_template("index.html", title="Main Game")
 
-# @app.route("/")
-# def index():
-#     return redirect(url_for('main_page'))
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -54,38 +55,14 @@ def index():
 def bike_race_game():
     return render_template("modern_bike_race.html", title="Bike Race Game")
 
-
-
-# @app.route("/")
-# # @login_required
-# def snake_game():
-#     """Renders the snake game page."""
-#     return render_template("snake_game.html")
-
-# Auth routes
-# @app.route('/')
-# def index():
-#     if current_user.is_authenticated:
-#         if current_user.is_admin:
-#             return redirect(url_for('admin_dashboard'))
-#         else:
-#             return redirect(url_for('user_dashboard'))
-#     return redirect(url_for('login'))
-
 @app.route('/check-auth')
 def check_auth():
-    print("yaha3")
     if current_user.is_authenticated:
         if current_user.is_admin:
             return redirect(url_for('admin_dashboard'))
         else:
             return redirect(url_for('user_dashboard'))
     return redirect(url_for('main_page'))
-
-from flask import request, flash, redirect, url_for, render_template
-from flask_login import login_required, current_user
-from werkzeug.security import generate_password_hash
-from functools import wraps
 
 # Decorator to ensure only admins can access certain routes
 def admin_required(f):
@@ -205,17 +182,7 @@ def send_password_change_notification(user):
 @admin_required
 def password_change_log():
     """View log of password changes made by admins"""
-    # This would require a separate audit log table
-    # Example structure:
-    # class PasswordChangeLog(db.Model):
-    #     id = db.Column(db.Integer, primary_key=True)
-    #     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    #     target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    #     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    #     ip_address = db.Column(db.String(45))
-    
-    # logs = PasswordChangeLog.query.order_by(PasswordChangeLog.timestamp.desc()).all()
-    # return render_template('admin/password_change_log.html', logs=logs)
+
     pass
 
 
@@ -554,150 +521,656 @@ def view_ledger(ledger_id):
                            title=f'Ledger: {ledger.name}',
                            ledger=ledger,
                            form=form,
-                           balance=current_balance, # Pass the final calculated balance
-                           all_entries=all_entries_to_display, # Pass the new combined list
+                           balance=current_balance, 
+                           all_entries=all_entries_to_display, 
                            is_dummy=is_dummy,
                            action="view")
-    # return render_template('user/ledger.html',
-    #                     # ... (other variables like title, ledger, form, etc.) ...
-    #                     all_entries=all_entries_with_balance,
-    #                     balance=running_balance, # This is the final balance
-    #                     is_dummy=is_dummy,
-    #                     action="view")
-# @app.route('/ledger/<int:ledger_id>')
-# @login_required
-# def view_ledger(ledger_id):
-#     is_dummy = is_using_dummy()
-#     ledger = Ledger.query.get_or_404(ledger_id)
-    
-#     # Security check: Verify user owns this ledger and it matches the current view mode
-#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
-#         abort(403)
-    
-#     # Create form for adding new entries
-#     form = LedgerEntryForm()
-#     form.ledger_id.data = ledger_id
-    
-#     # Get user's connections for the selection field
-#     connections = User.query.join(Connection, or_(
-#         and_(Connection.user_id == current_user.id, 
-#              Connection.connected_user_id == User.id),
-#         and_(Connection.connected_user_id == current_user.id, 
-#              Connection.user_id == User.id)
-#     )).filter(
-#         Connection.status == 'accepted'
-#     ).all()
-    
-#     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
-    
-#     # Calculate total balance
-#     balance = 0
-#     for entry in ledger.entries:
-#         if entry.is_debit:
-#             balance -= entry.amount
-#         else:
-#             balance += entry.amount
-    
-#     return render_template('user/ledger.html',
-#                           title=f'Ledger: {ledger.name}',
-#                           ledger=ledger,
-#                           form=form,
-#                           balance=balance,
-#                           is_dummy=is_dummy,
-#                           action="view")
 
+
+
+@app.route('/api/check_username', methods=['POST'])
+@login_required
+def check_username():
+    """Check if username exists and return user info"""
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+    
+    # Validate username format (optional)
+    if len(username) < 3:
+        return jsonify({'error': 'Username must be at least 3 characters'}), 400
+    
+    if len(username) > 64:
+        return jsonify({'error': 'Username must be less than 64 characters'}), 400
+
+    user = User.query.filter_by(username=username).first()
+    
+    if user:
+        if user.id == current_user.id:
+            return jsonify({
+                'exists': True,
+                'user_id': user.id,
+                'username': user.username,
+                'is_self': True,
+                'is_connected': False
+            })
+
+        is_connected = Connection.query.filter(
+            or_(
+                and_(Connection.user_id == current_user.id, 
+                     Connection.connected_user_id == user.id),
+                and_(Connection.connected_user_id == current_user.id,
+                     Connection.user_id == user.id)
+            ),
+            Connection.status == 'accepted'
+        ).first() is not None
+        
+        return jsonify({
+            'exists': True,
+            'user_id': user.id,
+            'username': user.username,
+            'is_connected': is_connected,
+            'is_self': False
+        })
+    else:
+        return jsonify({
+            'exists': False,
+            'message': f'Username "{username}" is available'
+        })
 
 @app.route('/ledger/<int:ledger_id>/add_entry', methods=['POST'])
 @login_required
 def add_ledger_entry(ledger_id):
+    print(f">>> Entering add_ledger_entry for ledger_id: {ledger_id}")
     is_dummy = is_using_dummy()
-    ledger = Ledger.query.get_or_404(ledger_id)
+    print(f">>> is_dummy mode: {is_dummy}")
     
-    # Security check: Verify user owns this ledger and it matches the current view mode
+    ledger = Ledger.query.get_or_404(ledger_id)
+    print(f">>> Ledger found: {ledger.name}")
+
     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        print(">>> Security Check Failed: User does not own this ledger or dummy mismatch")
         abort(403)
     
     form = LedgerEntryForm()
+    print(">>> LedgerEntryForm initialized")
     
-    # Handle based on view mode (dummy or real)
-    if is_dummy:
-        # In dummy mode, allow any entry without validation or connections
-        is_debit = form.transaction_type.data == 'debit'
+    # Fetch connections
+    connections = User.query.join(Connection, or_(
+        and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
+        and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
+    )).filter(Connection.status == 'accepted').all()
+    print(f">>> Found {len(connections)} accepted connections")
+    
+    form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+    print(">>> Dropdown choices populated")
+
+    # Check validation status
+    is_valid = form.validate_on_submit()
+    print(f">>> form.validate_on_submit() returned: {is_valid}")
+    
+    if not is_valid:
+        print(f">>> FORM VALIDATION ERRORS: {form.errors}")
+        print(f">>> RAW REQUEST FORM: {request.form}")
+
+    if is_valid:
+        print(">>> Inside validation block")
+        connected_user_input = request.form.get('connected_user_input', '').strip()
+        print(f">>> connected_user_input value: '{connected_user_input}'")
+        connected_user_id = None
+        
+        if connected_user_input:
+            print(f">>> Searching for existing user: {connected_user_input}")
+            existing_user = User.query.filter_by(username=connected_user_input).first()
+            
+            if existing_user:
+                print(f">>> Existing user found with ID: {existing_user.id}")
+                connected_user_id = existing_user.id
+                conn_exists = Connection.query.filter(
+                    or_(
+                        and_(Connection.user_id == current_user.id, Connection.connected_user_id == connected_user_id),
+                        and_(Connection.user_id == connected_user_id, Connection.connected_user_id == current_user.id)
+                    )
+                ).first()
+                if not conn_exists:
+                    print(">>> Creating new connection for existing user")
+                    new_conn = Connection(user_id=current_user.id, connected_user_id=connected_user_id, status='accepted')
+                    db.session.add(new_conn)
+            else:
+                print(">>> No existing user found. Attempting to create NEW user.")
+                try:
+                    import secrets, string
+                    from werkzeug.security import generate_password_hash
+                    random_pw = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                    
+                    new_user = User(
+                        username=connected_user_input,
+                        email=f"{connected_user_input.lower()}@temporary.local",
+                        password_hash=generate_password_hash(random_pw),
+                        is_active=False
+                    )
+                    db.session.add(new_user)
+                    print(">>> User object added to session, flushing...")
+                    db.session.flush() 
+                    print(f">>> Flush successful. New User ID: {new_user.id}")
+                    
+                    for dummy_status in [True, False]:
+                        print(f">>> Creating 'Personal Account' ledger (is_dummy={dummy_status}) for new user")
+                        db.session.add(Ledger(name="Personal Account", user_id=new_user.id, is_dummy=dummy_status))
+                    
+                    print(">>> Creating Connection record")
+                    db.session.add(Connection(user_id=current_user.id, connected_user_id=new_user.id, status='accepted'))
+                    connected_user_id = new_user.id
+                except Exception as e:
+                    print(f">>> ERROR during user creation: {str(e)}")
+                    db.session.rollback()
+                    flash(f'Error: {str(e)}', 'danger')
+                    return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+        elif form.connected_user.data and form.connected_user.data != 0:
+            print(f">>> Using dropdown selection ID: {form.connected_user.data}")
+            connected_user_id = form.connected_user.data
+
+        print(">>> Preparing LedgerEntry object")
         entry = LedgerEntry(
             description=form.description.data,
             amount=form.amount.data,
-            is_debit=is_debit,
+            is_debit=(form.transaction_type.data == 'debit'),
             ledger_id=ledger_id,
-            connected_user_id=None  # No connected user in dummy mode
+            connected_user_id=connected_user_id
         )
         db.session.add(entry)
+        db.session.flush()
+        print(f">>> LedgerEntry created with ID: {entry.id}")
+
+        if connected_user_id:
+            print(f">>> Attempting to create mirror entry for user: {connected_user_id}")
+            target_ledger = Ledger.query.filter_by(
+                user_id=connected_user_id, is_dummy=is_dummy, name="Personal Account"
+            ).first()
+            if target_ledger:
+                print(f">>> Found target ledger ID: {target_ledger.id}")
+                mirror = LedgerEntry(
+                    description=f"From {current_user.username}: {form.description.data}",
+                    amount=form.amount.data,
+                    is_debit=not entry.is_debit,
+                    ledger_id=target_ledger.id,
+                    connected_user_id=current_user.id,
+                    connected_entry_id=entry.id
+                )
+                db.session.add(mirror)
+                db.session.flush()
+                entry.connected_entry_id = mirror.id
+                print(">>> Mirror entry linked successfully")
+            else:
+                print(">>> WARNING: Target 'Personal Account' ledger not found for mirror entry")
+
+        print(">>> Committing all changes to database")
         db.session.commit()
-        flash('Dummy ledger entry added successfully!', 'success')
-        
+        print(">>> Commit successful!")
+        flash('Transaction recorded!', 'success')
     else:
-        # Real mode - Get user's connections for the validation
+        print(">>> Form validation failed. Flashing error messages to UI.")
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{field}: {error}", 'danger')
+
+    print(f">>> Redirecting back to ledger {ledger_id}")
+    return redirect(url_for('view_ledger', ledger_id=ledger_id))
+# @app.route('/ledger/<int:ledger_id>/add_entry', methods=['POST'])
+# @login_required
+# def add_ledger_entry(ledger_id):
+#     is_dummy = is_using_dummy()
+#     ledger = Ledger.query.get_or_404(ledger_id)
+
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+#         abort(403)
+    
+#     form = LedgerEntryForm()
+
+#     if is_dummy:
+#         is_debit = form.transaction_type.data == 'debit'
+#         entry = LedgerEntry(
+#             description=form.description.data,
+#             amount=form.amount.data,
+#             is_debit=is_debit,
+#             ledger_id=ledger_id,
+#             connected_user_id=None
+#         )
+#         db.session.add(entry)
+#         db.session.commit()
+#         flash('Dummy ledger entry added successfully!', 'success')
+        
+#     else:
+#         # Real mode - Get user's connections for the validation
+#         connections = User.query.join(Connection, or_(
+#             and_(Connection.user_id == current_user.id, 
+#                 Connection.connected_user_id == User.id),
+#             and_(Connection.connected_user_id == current_user.id,
+#                 Connection.user_id == User.id)
+#         )).filter(
+#             Connection.status == 'accepted'
+#         ).all()
+#         connection_user_ids = [u.id for u in connections]
+#         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+        
+#         if form.validate_on_submit():
+#             # Get the username input (could be ID or new username)
+#             connected_user_input = request.form.get('connected_user_input', '').strip()
+#             connected_user_id = None
+            
+#             # Check if input is a new username or existing user selection
+#             if connected_user_input:
+#                 # First, check if username already exists
+#                 existing_user = User.query.filter_by(username=connected_user_input).first()
+                
+#                 if existing_user:
+#                     connected_user_id = existing_user.id
+                    
+#                     # Check if this user is in connections (if not, auto-create connection)
+#                     if connected_user_id not in connection_user_ids and connected_user_id != current_user.id:
+#                         # Auto-create bidirectional connection
+#                         connection = Connection(
+#                             user_id=current_user.id,
+#                             connected_user_id=connected_user_id,
+#                             status='accepted'
+#                         )
+#                         db.session.add(connection)
+#                         flash(f'Connection with {connected_user_input} created automatically!', 'info')
+#                 else:
+#                     # Create new user
+#                     try:
+#                         import secrets
+#                         import string
+#                         from werkzeug.security import generate_password_hash
+                        
+#                         # Generate random password for the new user
+#                         random_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+#                         temp_email = f"{connected_user_input.lower()}@temporary.local"
+                        
+#                         new_user = User(
+#                             username=connected_user_input,
+#                             email=temp_email,
+#                             password_hash=generate_password_hash(random_password),
+#                             password_hash_dummy=generate_password_hash(random_password),
+#                             is_active=False  # Mark as inactive until they set their own password
+#                         )
+#                         db.session.add(new_user)
+#                         db.session.flush()  # Get the new user ID
+                        
+#                         # Create default ledger for new user
+#                         default_ledger = Ledger(
+#                             name="Personal Account",
+#                             description="Auto-created default ledger",
+#                             user_id=new_user.id,
+#                             is_dummy=False
+#                         )
+#                         db.session.add(default_ledger)
+                        
+#                         # Create dummy ledger for new user
+#                         dummy_ledger = Ledger(
+#                             name="Personal Account",
+#                             description="Auto-created dummy ledger",
+#                             user_id=new_user.id,
+#                             is_dummy=True
+#                         )
+#                         db.session.add(dummy_ledger)
+                        
+#                         # Create connection with the new user
+#                         connection = Connection(
+#                             user_id=current_user.id,
+#                             connected_user_id=new_user.id,
+#                             status='accepted'
+#                         )
+#                         db.session.add(connection)
+                        
+#                         connected_user_id = new_user.id
+#                         flash(f'New user "{connected_user_input}" created successfully!', 'success')
+                        
+#                     except Exception as e:
+#                         db.session.rollback()
+#                         flash(f'Error creating user: {str(e)}', 'danger')
+#                         return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+#             elif form.connected_user.data != 0:
+#                 connected_user_id = form.connected_user.data
+#                 if connected_user_id not in connection_user_ids:
+#                     flash('Invalid connected user selected.', 'danger')
+#                     return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+#             is_debit = form.transaction_type.data == 'debit'
+#             entry = LedgerEntry(
+#                 description=form.description.data,
+#                 amount=form.amount.data,
+#                 is_debit=is_debit,
+#                 ledger_id=ledger_id,
+#                 connected_user_id=connected_user_id if connected_user_id else None
+#             )
+#             db.session.add(entry)
+#             db.session.flush()
+            
+#             # If connected to another user, create mirror entry
+#             if connected_user_id:
+#                 connected_user_ledger = Ledger.query.filter_by(
+#                     user_id=connected_user_id,
+#                     is_dummy=is_dummy,
+#                     name="Personal Account"
+#                 ).first()
+                
+#                 if connected_user_ledger:
+#                     mirror_entry = LedgerEntry(
+#                         description=f"From {current_user.username}: {form.description.data}",
+#                         amount=form.amount.data,
+#                         is_debit=not is_debit,
+#                         ledger_id=connected_user_ledger.id,
+#                         connected_user_id=current_user.id,
+#                         connected_entry_id=entry.id
+#                     )
+#                     db.session.add(mirror_entry)
+#                     entry.connected_entry_id = mirror_entry.id
+            
+#             db.session.commit()
+#             flash('Ledger entry added successfully!', 'success')
+            
+#         else:
+#             for field, errors in form.errors.items():
+#                 for error in errors:
+#                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+    
+#     return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+# @app.route('/ledger/<int:ledger_id>/add_entry', methods=['POST'])
+# @login_required
+# def add_ledger_entry(ledger_id):
+#     is_dummy = is_using_dummy()
+#     ledger = Ledger.query.get_or_404(ledger_id)
+
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+#         abort(403)
+    
+#     form = LedgerEntryForm()
+
+#     if is_dummy:
+#         is_debit = form.transaction_type.data == 'debit'
+#         entry = LedgerEntry(
+#             description=form.description.data,
+#             amount=form.amount.data,
+#             is_debit=is_debit,
+#             ledger_id=ledger_id,
+#             connected_user_id=None  # No connected user in dummy mode
+#         )
+#         db.session.add(entry)
+#         db.session.commit()
+#         flash('Dummy ledger entry added successfully!', 'success')
+        
+#     else:
+#         # Real mode - Get user's connections for the validation
+#         connections = User.query.join(Connection, or_(
+#             and_(Connection.user_id == current_user.id, 
+#                 Connection.connected_user_id == User.id),
+#             and_(Connection.connected_user_id == current_user.id,
+#                 Connection.user_id == User.id)
+#         )).filter(
+#             Connection.status == 'accepted'
+#         ).all()
+#         connection_user_ids = [u.id for u in connections]
+#         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+        
+#         if form.validate_on_submit():
+#             # Validate connected user
+#             connected_user_id = form.connected_user.data
+#             if connected_user_id != 0 and connected_user_id not in connection_user_ids:
+#                 flash('Invalid connected user selected.', 'danger')
+#                 return redirect(url_for('view_ledger', ledger_id=ledger_id))
+            
+#             # Create the entry for the current user
+#             is_debit = form.transaction_type.data == 'debit'
+#             entry = LedgerEntry(
+#                 description=form.description.data,
+#                 amount=form.amount.data,
+#                 is_debit=is_debit,
+#                 ledger_id=ledger_id,
+#                 connected_user_id=connected_user_id if connected_user_id != 0 else None
+#             )
+#             db.session.add(entry)
+#             db.session.flush()  # Get the entry ID without committing
+            
+#             # If this is connected to another user, create the corresponding entry in their ledger
+#             if connected_user_id != 0:
+#                 # Find the default ledger for the connected user
+#                 connected_user_ledger = Ledger.query.filter_by(
+#                     user_id=connected_user_id,
+#                     is_dummy=is_dummy,
+#                     name="Personal Account"
+#                 ).first()
+                
+#                 if connected_user_ledger:
+#                     # Create mirror entry with opposite debit/credit status
+#                     mirror_entry = LedgerEntry(
+#                         description=f"From {current_user.username}: {form.description.data}",
+#                         amount=form.amount.data,
+#                         is_debit=not is_debit,  # Opposite of current entry
+#                         ledger_id=connected_user_ledger.id,
+#                         connected_user_id=current_user.id,
+#                         connected_entry_id=entry.id
+#                     )
+#                     db.session.add(mirror_entry)
+                    
+#                     # Link the entries together
+#                     entry.connected_entry_id = mirror_entry.id
+            
+#             db.session.commit()
+#             flash('Ledger entry added successfully!', 'success')
+            
+#         else:
+#             for field, errors in form.errors.items():
+#                 for error in errors:
+#                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+    
+#     return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+
+
+@app.route('/user_summary')
+@login_required
+def user_summary():
+    username = request.args.get('username', '').strip()
+    print(username)
+    selected_ledger_id = request.args.get('ledger_id', type=int)
+    
+    user_data = None
+    all_connected_users = User.query.join(Connection, or_(
+        and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
+        and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
+    )).filter(Connection.status == 'accepted').all()
+
+    if username:
+        # 1. Find the target user
+        target_user = User.query.filter_by(username=username).first()
+        
+        if target_user:
+            # 2. Verify they are actually connected to you
+            is_connected = any(u.id == target_user.id for u in all_connected_users)
+            
+            if is_connected:
+                # 3. Build the query for transactions
+                query = LedgerEntry.query.join(Ledger).filter(
+                    Ledger.user_id == current_user.id,
+                    LedgerEntry.connected_user_id == target_user.id
+                )
+                
+                # Filter by specific ledger if requested, otherwise show all
+                if selected_ledger_id:
+                    query = query.filter(LedgerEntry.ledger_id == selected_ledger_id)
+                
+                transactions = query.order_by(LedgerEntry.date.desc()).all()
+                
+                # 4. Calculate Totals
+                total_debit = sum(t.amount for t in transactions if t.is_debit)
+                total_credit = sum(t.amount for t in transactions if not t.is_debit)
+                net_balance = total_credit - total_debit
+                
+                user_data = {
+                    'user': target_user,
+                    'transactions': transactions,
+                    'total_debit': total_debit,
+                    'total_credit': total_credit,
+                    'net_balance': net_balance,
+                    'ledger_name': Ledger.query.get(selected_ledger_id).name if selected_ledger_id else "All Ledgers"
+                }
+            else:
+                flash(f"User {username} is not in your connections.", "warning")
+        else:
+            flash(f"User {username} not found.", "danger")
+
+    # Get list of your ledgers for the dropdown filter
+    user_ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_using_dummy()).all()
+    
+    return render_template('user_summary.html', 
+                           user_data=user_data, 
+                           all_connected_users=all_connected_users,
+                           user_ledgers=user_ledgers,
+                           selected_ledger_id=selected_ledger_id,
+                           search_query=username)
+
+@app.route('/ledger/<int:ledger_id>/edit_entry/<int:entry_id>', methods=['GET', 'POST'])
+@login_required
+def edit_ledger_entry(ledger_id, entry_id):
+    is_dummy = is_using_dummy()
+
+    ledger = Ledger.query.get_or_404(ledger_id)
+    entry = LedgerEntry.query.get_or_404(entry_id)
+
+    # 1. Security Check: Verify ownership and ledger mode
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or entry.ledger_id != ledger_id:
+        abort(403)
+
+    if not is_dummy and entry.connected_entry_id is not None and entry.description.lower().startswith("from "):
+        # This is a mirror entry initiated by a connected user. It should be read-only.
+        abort(403)
+
+    is_ajax_get = (request.method == 'GET' and 
+                   (request.accept_mimetypes.accept_json or 
+                    request.is_json or
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest'))
+
+    if is_ajax_get:
+        # Determine the transaction type string
+        transaction_type_value = 'debit' if entry.is_debit else 'credit'
+        
+        # Determine the connected user ID string (or '0' if None)
+        connected_user_id_str = str(entry.connected_user_id) if entry.connected_user_id is not None else '0'
+
+        data_for_modal = {
+            'entry_id': entry.id,
+            'description': entry.description,
+            'amount': float(entry.amount),    
+            'connected_user': connected_user_id_str, 
+            'transaction_type': transaction_type_value,
+            'success': True 
+        }
+
+        return jsonify(data_for_modal)
+
+    form = LedgerEntryForm(obj=entry) 
+
+    if is_dummy:
+        # Dummy Mode: Simple update
+        if form.validate_on_submit():
+            entry.description = form.description.data
+            entry.amount = form.amount.data
+            entry.is_debit = form.transaction_type.data == 'debit'
+
+            db.session.commit()
+            flash('Dummy ledger entry updated successfully!', 'success')
+            return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+    else:
         connections = User.query.join(Connection, or_(
-            and_(Connection.user_id == current_user.id, 
-                Connection.connected_user_id == User.id),
-            and_(Connection.connected_user_id == current_user.id,
-                Connection.user_id == User.id)
+            and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
+            and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
         )).filter(
             Connection.status == 'accepted'
         ).all()
         connection_user_ids = [u.id for u in connections]
         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
-        
+
+        # Set initial value for connected_user field (Only needed for regular GET/POST fail)
+        if request.method == 'GET':
+            # This is only executed for regular GETs (not AJAX, which is handled above)
+            form.connected_user.data = entry.connected_user_id if entry.connected_user_id else 0
+            form.transaction_type.data = 'debit' if entry.is_debit else 'credit'
+            
         if form.validate_on_submit():
-            # Validate connected user
-            connected_user_id = form.connected_user.data
-            if connected_user_id != 0 and connected_user_id not in connection_user_ids:
+            new_connected_user_id = form.connected_user.data
+            old_connected_entry_id = entry.connected_entry_id
+            
+            # Validation Check
+            if new_connected_user_id != 0 and new_connected_user_id not in connection_user_ids:
                 flash('Invalid connected user selected.', 'danger')
-                return redirect(url_for('view_ledger', ledger_id=ledger_id))
-            
-            # Create the entry for the current user
+                return redirect(url_for('edit_ledger_entry', ledger_id=ledger_id, entry_id=entry_id))
+
+            # Delete old mirror entry if connection changed or removed
+            if old_connected_entry_id and (new_connected_user_id == 0 or entry.connected_user_id != new_connected_user_id):
+                old_mirror = LedgerEntry.query.get(old_connected_entry_id)
+                if old_mirror:
+                    db.session.delete(old_mirror)
+                    entry.connected_entry_id = None # Crucial cleanup
+                
+            # Update the current entry
             is_debit = form.transaction_type.data == 'debit'
-            entry = LedgerEntry(
-                description=form.description.data,
-                amount=form.amount.data,
-                is_debit=is_debit,
-                ledger_id=ledger_id,
-                connected_user_id=connected_user_id if connected_user_id != 0 else None
-            )
-            db.session.add(entry)
-            db.session.flush()  # Get the entry ID without committing
+            entry.description = form.description.data
+            entry.amount = form.amount.data
+            entry.is_debit = is_debit
+            entry.connected_user_id = new_connected_user_id if new_connected_user_id != 0 else None
             
-            # If this is connected to another user, create the corresponding entry in their ledger
-            if connected_user_id != 0:
-                # Find the default ledger for the connected user
+            # --- Handle Mirror Entry Creation/Update ---
+            if new_connected_user_id != 0:
                 connected_user_ledger = Ledger.query.filter_by(
-                    user_id=connected_user_id,
+                    user_id=new_connected_user_id,
                     is_dummy=is_dummy,
                     name="Personal Account"
                 ).first()
                 
                 if connected_user_ledger:
-                    # Create mirror entry with opposite debit/credit status
-                    mirror_entry = LedgerEntry(
-                        description=f"From {current_user.username}: {form.description.data}",
-                        amount=form.amount.data,
-                        is_debit=not is_debit,  # Opposite of current entry
-                        ledger_id=connected_user_ledger.id,
-                        connected_user_id=current_user.id,
-                        connected_entry_id=entry.id
-                    )
-                    db.session.add(mirror_entry)
-                    
-                    # Link the entries together
-                    entry.connected_entry_id = mirror_entry.id
-            
+                    if entry.connected_entry_id:
+                        # Update existing mirror entry
+                        mirror_entry = LedgerEntry.query.get(entry.connected_entry_id)
+                        if mirror_entry:
+                            mirror_entry.description = f"From {current_user.username}: {form.description.data}"
+                            mirror_entry.amount = form.amount.data
+                            mirror_entry.is_debit = not is_debit
+                            mirror_entry.connected_user_id = current_user.id
+                        # If mirror not found, will commit and leave it unlinked.
+                        
+                    else:
+                        # Create a new mirror entry
+                        mirror_entry = LedgerEntry(
+                            description=f"From {current_user.username}: {form.description.data}",
+                            amount=form.amount.data,
+                            is_debit=not is_debit,
+                            ledger_id=connected_user_ledger.id,
+                            connected_user_id=current_user.id,
+                            connected_entry_id=entry.id
+                        )
+                        db.session.add(mirror_entry)
+                        db.session.flush() 
+                        entry.connected_entry_id = mirror_entry.id # Link back
+
             db.session.commit()
-            flash('Ledger entry added successfully!', 'success')
-            
-        else:
+            flash('Ledger entry updated successfully!', 'success')
+            return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+        # Handle form errors for POST request that failed validation
+        elif request.method == 'POST':
             for field, errors in form.errors.items():
                 for error in errors:
                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
     
+    # Render the form (for GET requests or POST requests that failed validation)
+    # return render_template('edit_ledger_entry.html', form=form, ledger_id=ledger_id)
     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 
