@@ -12,6 +12,11 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from functools import wraps
 
+from datetime import date, timedelta
+from sqlalchemy import func
+from calendar import monthrange
+from sqlalchemy import func, case
+
 from forms import (LoginForm, UserCreationForm, LedgerForm, LedgerEntryForm, 
                   ConnectionRequestForm, ProfileUpdateForm)
 
@@ -313,45 +318,6 @@ def toggle_user(user_id):
     return redirect(url_for('manage_users'))
 
 
-# User routes
-# @app.route('/dashboard')
-# @login_required
-# def user_dashboard():
-#     is_dummy = is_using_dummy()
-
-#     ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
-    
-#     # Calculate total balance
-#     total_balance = 0
-#     for ledger in ledgers:
-#         for entry in ledger.entries:
-#             if entry.is_debit:
-#                 total_balance -= entry.amount
-#             else:
-#                 total_balance += entry.amount
-    
-#     # Get connection requests only in real mode
-#     if is_dummy:
-#         pending_requests = []  # No connection requests in dummy mode
-#     else:
-#         pending_requests = Connection.query.filter_by(
-#             connected_user_id=current_user.id, 
-#             status='pending'
-#         ).all()
-    
-#     # Get recent transactions
-#     recent_transactions = LedgerEntry.query.join(Ledger).filter(
-#         Ledger.user_id == current_user.id,
-#         Ledger.is_dummy == is_dummy
-#     ).order_by(LedgerEntry.date.desc()).limit(5).all()
-    
-#     return render_template('user/dashboard.html',
-#                           title='Dashboard',
-#                           ledgers=ledgers,
-#                           total_balance=total_balance,
-#                           pending_requests=pending_requests,
-#                           recent_transactions=recent_transactions,
-#                           is_dummy=is_dummy)
 
 @app.route('/dashboard')
 @login_required
@@ -441,42 +407,33 @@ def create_ledger():
 
 
 
-from datetime import date, timedelta
-from sqlalchemy import func
-from calendar import monthrange
-from sqlalchemy import func, case
 
 @app.route('/ledger/<int:ledger_id>')
 @login_required
 def view_ledger(ledger_id):
     is_dummy = is_using_dummy()
     ledger = Ledger.query.get_or_404(ledger_id)
-    
-    # Security check: Verify user owns this ledger and it matches the current view mode
+
+    # Security check
     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
         abort(403)
-    
-    # Create form for adding new entries
+
     form = LedgerEntryForm()
     form.ledger_id.data = ledger_id
-    
-    # Get user's connections for the selection field
+
     connections = User.query.join(Connection, or_(
-        and_(Connection.user_id == current_user.id, 
+        and_(Connection.user_id == current_user.id,
              Connection.connected_user_id == User.id),
-        and_(Connection.connected_user_id == current_user.id, 
+        and_(Connection.connected_user_id == current_user.id,
              Connection.user_id == User.id)
-    )).filter(
-        Connection.status == 'accepted'
-    ).all()
-    
+    )).filter(Connection.status == 'accepted').all()
+
     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
-    
-    # --- NEW LOGIC FOR AGGREGATED BALANCE ---
+
     today = date.today()
     first_day_of_current_month = today.replace(day=1)
-    
-    # Calculate the total balance from all entries BEFORE the current month
+
+    # Balance from ALL entries before this month
     previous_month_balance = db.session.query(
         func.sum(
             case(
@@ -487,29 +444,15 @@ def view_ledger(ledger_id):
     ).filter(
         LedgerEntry.ledger_id == ledger.id,
         LedgerEntry.date < first_day_of_current_month
-    ).scalar() or 0.0  # Use 0.0 if no entries are found
-    
-    # Get all entries for the current month
+    ).scalar() or 0.0
+
+    # Current month entries only
     current_month_entries = LedgerEntry.query.filter(
         LedgerEntry.ledger_id == ledger.id,
         LedgerEntry.date >= first_day_of_current_month
     ).order_by(LedgerEntry.date.asc()).all()
 
-    # Create a new "virtual" entry for the aggregated balance to display
-    # This entry is NOT saved to the database. It's just for the view.
-    aggregated_entry = {
-        'date': first_day_of_current_month,
-        'description': 'Previous Month Aggregated Balance',
-        'amount': abs(previous_month_balance),
-        'is_debit': previous_month_balance < 0,
-        'is_aggregated': True # Add a flag to identify this entry in the template
-    }
-    
-    # Combine the aggregated entry with the current month's entries
-    # The list will now start with the aggregated balance, followed by the new entries
-    all_entries_to_display = [aggregated_entry] + current_month_entries
-    
-    # Calculate the running total for the balance
+    # Running total: start from previous month balance + current month
     current_balance = previous_month_balance
     for entry in current_month_entries:
         if entry.is_debit:
@@ -517,16 +460,89 @@ def view_ledger(ledger_id):
         else:
             current_balance += entry.amount
 
+    # Virtual aggregated entry for display (not saved to DB)
+    aggregated_entry = {
+        'date': first_day_of_current_month,
+        'description': 'Previous Month Aggregated Balance',
+        'amount': abs(previous_month_balance),
+        'is_debit': previous_month_balance < 0,
+        'is_aggregated': True
+    }
+
+    all_entries_to_display = [aggregated_entry] + current_month_entries
+
+    # -----------------------------------------------------------------------
+    # FIX: Monkey-patch ledger.entries so the template uses ONLY current month
+    # entries (the ones we filtered). This prevents the template from iterating
+    # over ledger.entries (the full relationship) which caused the balance
+    # to appear wrong vs the table contents.
+    # -----------------------------------------------------------------------
+    ledger.entries = current_month_entries
+
     return render_template('user/ledger.html',
                            title=f'Ledger: {ledger.name}',
                            ledger=ledger,
                            form=form,
-                           balance=current_balance, 
-                           all_entries=all_entries_to_display, 
+                           balance=current_balance,
+                           all_entries=all_entries_to_display,
                            is_dummy=is_dummy,
                            action="view")
 
 
+# ---------------------------------------------------------------------------
+# DELETE ENTRY ROUTE
+# ---------------------------------------------------------------------------
+@app.route('/ledger/<int:ledger_id>/delete_entry/<int:entry_id>', methods=['POST'])
+@login_required
+def delete_ledger_entry(ledger_id, entry_id):
+    is_dummy = is_using_dummy()
+
+    ledger = Ledger.query.get_or_404(ledger_id)
+    entry = LedgerEntry.query.get_or_404(entry_id)
+
+    # Security checks
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        abort(403)
+    if entry.ledger_id != ledger_id:
+        abort(403)
+
+    # Prevent deleting a mirror entry created by another user
+    if not is_dummy and entry.connected_entry_id is not None and entry.description.lower().startswith("from "):
+        flash('You cannot delete a mirrored entry created by another user.', 'danger')
+        return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+    # --- FIX: Break circular dependency before deleting ---
+    # Both entries reference each other via connected_entry_id.
+    # SQLAlchemy can't figure out delete order, so we null both FK references first,
+    # flush to DB, then delete safely.
+
+    mirror = None
+    if entry.connected_entry_id:
+        mirror = LedgerEntry.query.get(entry.connected_entry_id)
+
+    # Step 1: Null out all connected_entry_id references
+    entry.connected_entry_id = None
+    if mirror:
+        mirror.connected_entry_id = None
+
+    # Also clear any other entry that points to the mirror (defensive)
+    if mirror:
+        orphan = LedgerEntry.query.filter_by(connected_entry_id=mirror.id).first()
+        if orphan and orphan.id != entry.id:
+            orphan.connected_entry_id = None
+
+    # Step 2: Flush the nulls to DB so no FKs point to rows we're about to delete
+    db.session.flush()
+
+    # Step 3: Now safely delete
+    if mirror:
+        db.session.delete(mirror)
+    db.session.delete(entry)
+
+    db.session.commit()
+
+    flash('Entry deleted successfully.', 'success')
+    return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 @app.route('/api/check_username', methods=['POST'])
 @login_required

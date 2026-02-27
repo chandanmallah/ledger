@@ -189,6 +189,11 @@
                                                         data-entry-id="{{ entry.id }}">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
+                                                <button class="btn btn-sm btn-outline-danger delete-entry-btn ms-1"
+                                                        data-entry-id="{{ entry.id }}"
+                                                        data-entry-desc="{{ entry.description }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -208,14 +213,17 @@
         </div>
     </div>
 
+    <!-- Floating Add Button -->
     <button class="btn btn-primary position-fixed" 
             style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000;" 
             id="floatingAddBtn"
             data-bs-toggle="modal" 
             data-bs-target="#transactionModal"
-            data-entry-id="0"> <i class="fas fa-plus fa-lg"></i>
+            data-entry-id="0">
+        <i class="fas fa-plus fa-lg"></i>
     </button>
     
+    <!-- Add / Edit Transaction Modal -->
     <div class="modal fade" id="transactionModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -260,7 +268,6 @@
                                 <i class="fas fa-user me-1"></i>Connected User
                             </label>
                             
-                            <!-- Toggle between dropdown and text input -->
                             <div class="btn-group w-100 mb-2" role="group">
                                 <input type="radio" class="btn-check" name="userInputMode" id="selectExisting" checked autocomplete="off">
                                 <label class="btn btn-outline-primary btn-sm" for="selectExisting">
@@ -273,12 +280,10 @@
                                 </label>
                             </div>
                             
-                            <!-- Existing user dropdown -->
                             <div id="existingUserDropdown">
                                 {{ form.connected_user(class="form-select") }}
                             </div>
                             
-                            <!-- New user text input -->
                             <div id="newUserInput" style="display: none;">
                                 <div class="input-group">
                                     <input type="text" 
@@ -319,6 +324,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Entry
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1">Are you sure you want to delete:</p>
+                    <p class="fw-bold mb-1" id="deleteEntryDesc"></p>
+                    <p class="text-muted small mb-0">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteEntryForm" method="POST">
+                        {{ form.hidden_tag() }}
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endif %}
 
 <style>
@@ -342,7 +376,6 @@
     font-weight: 600;
 }
 
-/* Toggle button styles */
 .btn-check:checked + .btn-outline-primary {
     background-color: #0d6efd;
     color: white;
@@ -353,7 +386,6 @@
     color: white;
 }
 
-/* New user input styles */
 #newUserInput input {
     border: 2px dashed #198754;
 }
@@ -370,7 +402,6 @@
     border-left: none;
 }
 
-/* Mobile responsive */
 @media (max-width: 768px) {
     #floatingAddBtn {
         display: block !important;
@@ -388,7 +419,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     {% if action != "create" %}
-    // Only run functionality if we're not in create mode
     const ledgerId = {{ ledger.id }};
     
     const searchInput = document.getElementById('userSearchInput');
@@ -419,10 +449,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalSubmitBtn = document.getElementById('modalSubmitBtn');
     
     const addUrl = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
-    // Fixed base path to avoid .replace('0', ...) bug with ledger IDs containing '0'
     const editBasePath = "/ledger/{{ ledger.id }}/edit_entry/"; 
+    const deleteBasePath = "/ledger/{{ ledger.id }}/delete_entry/";
     
-    // User input mode toggle elements
     const selectExistingRadio = document.getElementById('selectExisting');
     const createNewRadio = document.getElementById('createNew');
     const existingUserDropdown = document.getElementById('existingUserDropdown');
@@ -430,7 +459,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const connectedUserSelect = document.querySelector('[name="connected_user"]');
     const connectedUserInputText = document.getElementById('connected_user_input');
     
-    // Toggle between existing user dropdown and new user input
     if (selectExistingRadio && createNewRadio) {
         selectExistingRadio.addEventListener('change', function() {
             if (this.checked) {
@@ -447,13 +475,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 newUserInput.style.display = 'block';
                 if (connectedUserSelect) {
                     connectedUserSelect.value = '0';
-                    connectedUserSelect.disabled = true; // Prevents submitting '0' when creating new
+                    connectedUserSelect.disabled = true;
                 }
             }
         });
     }
     
-    // Real-time username validation
     let usernameCheckTimeout;
     if (connectedUserInputText) {
         connectedUserInputText.addEventListener('input', function() {
@@ -514,21 +541,18 @@ document.addEventListener('DOMContentLoaded', function() {
             form.reset();
             
             if (isEdit) {
-                modalTitle.textContent = 'Edit Transaction';
-                modalIcon.className = 'fas fa-edit me-2';
+                modalTitle.innerHTML = '<i class="fas fa-edit me-2" id="modalIcon"></i>Edit Transaction';
                 form.action = editBasePath + entryId; 
                 modalSubmitBtn.textContent = 'Save Changes';
                 fetchEntryData(entryId);
             } else {
-                modalTitle.textContent = 'Add New Transaction';
-                modalIcon.className = 'fas fa-plus me-2';
+                modalTitle.innerHTML = '<i class="fas fa-plus me-2" id="modalIcon"></i>Add New Transaction';
                 form.action = addUrl; 
                 modalSubmitBtn.textContent = 'Add Transaction';
                 
                 form.querySelector('[name="transaction_type"]').value = 'debit';
                 if (connectedUserSelect) connectedUserSelect.value = '0';
                 
-                // Ensure form starts in "Select Existing" mode
                 if (selectExistingRadio) {
                     selectExistingRadio.click(); 
                 }
@@ -536,8 +560,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         modalSubmitBtn.addEventListener('click', function() {
-            // Re-enable the select if in create mode so the value '0' is sent if needed,
-            // or ensure the backend prioritizes connected_user_input
             if (connectedUserSelect) connectedUserSelect.disabled = false;
             form.submit();
         });
@@ -566,7 +588,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ----------------------------------------------------------------------
-    // Search & Filter Functions (Existing Logic)
+    // Delete Entry Logic
+    // ----------------------------------------------------------------------
+    const deleteModal = document.getElementById('deleteModal');
+    const deleteEntryForm = document.getElementById('deleteEntryForm');
+    const deleteEntryDesc = document.getElementById('deleteEntryDesc');
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.delete-entry-btn');
+        if (!btn) return;
+        const entryId = btn.getAttribute('data-entry-id');
+        const desc = btn.getAttribute('data-entry-desc');
+        deleteEntryDesc.textContent = desc;
+        deleteEntryForm.action = deleteBasePath + entryId;
+        new bootstrap.Modal(deleteModal).show();
+    });
+
+    // ----------------------------------------------------------------------
+    // Search & Filter Functions
     // ----------------------------------------------------------------------
     function performSearch() {
         const filters = {
@@ -617,6 +656,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             data-entry-id="${transaction.id}">
                         <i class="fas fa-edit"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-danger delete-entry-btn ms-1"
+                            data-entry-id="${transaction.id}"
+                            data-entry-desc="${transaction.description}">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             </tr>`;
     }
@@ -639,377 +683,4 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 </script>
-
-<!-- <script>
-document.addEventListener('DOMContentLoaded', function() {
-    {% if action != "create" %}
-    // Only run functionality if we're not in create mode
-    const ledgerId = {{ ledger.id }};
-    
-    const searchInput = document.getElementById('userSearchInput');
-    const fromDateInput = document.getElementById('fromDate');
-    const toDateInput = document.getElementById('toDate');
-    const clearAllFiltersBtn = document.getElementById('clearAllFilters');
-    const searchInfo = document.getElementById('searchInfo');
-    const searchResultText = document.getElementById('searchResultText');
-    const activeFilters = document.getElementById('activeFilters');
-    const filterTags = document.getElementById('filterTags');
-    const tableBody = document.getElementById('transactionTableBody');
-    const balanceTitle = document.getElementById('balanceTitle');
-    const balanceAmount = document.getElementById('balanceAmount');
-    const balanceSubtext = document.getElementById('balanceSubtext');
-    
-    let searchTimeout;
-    let originalTableContent = tableBody ? tableBody.innerHTML : '';
-    let originalBalance = balanceAmount ? balanceAmount.textContent : '';
-    let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
-    
-    // ----------------------------------------------------------------------
-    // Modal Logic
-    // ----------------------------------------------------------------------
-    const transactionModal = document.getElementById('transactionModal');
-    const modalTitle = document.getElementById('transactionModalTitle');
-    const modalIcon = document.getElementById('modalIcon');
-    const form = document.getElementById('transactionForm');
-    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
-    
-    const addUrl = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
-    const editBasePath = "/ledger/{{ ledger.id }}/edit_entry/"; 
-    
-    // User input mode toggle elements
-    const selectExistingRadio = document.getElementById('selectExisting');
-    const createNewRadio = document.getElementById('createNew');
-    const existingUserDropdown = document.getElementById('existingUserDropdown');
-    const newUserInput = document.getElementById('newUserInput');
-    const connectedUserSelect = document.querySelector('[name="connected_user"]');
-    const connectedUserInputText = document.getElementById('connected_user_input');
-    
-    // Toggle between existing user dropdown and new user input
-    if (selectExistingRadio && createNewRadio) {
-        selectExistingRadio.addEventListener('change', function() {
-            if (this.checked) {
-                existingUserDropdown.style.display = 'block';
-                newUserInput.style.display = 'none';
-                if (connectedUserInputText) connectedUserInputText.value = '';
-                if (connectedUserSelect) connectedUserSelect.disabled = false;
-            }
-        });
-        
-        createNewRadio.addEventListener('change', function() {
-            if (this.checked) {
-                existingUserDropdown.style.display = 'none';
-                newUserInput.style.display = 'block';
-                if (connectedUserSelect) {
-                    connectedUserSelect.value = '0';
-                    connectedUserSelect.disabled = true;
-                }
-            }
-        });
-    }
-    
-    // Real-time username validation
-    let usernameCheckTimeout;
-    if (connectedUserInputText) {
-        connectedUserInputText.addEventListener('input', function() {
-            clearTimeout(usernameCheckTimeout);
-            const username = this.value.trim();
-            const helpText = document.getElementById('usernameHelpText');
-            const checkIcon = document.getElementById('usernameCheckIcon');
-            const spinner = checkIcon.querySelector('.fa-spin');
-            
-            if (!username) {
-                helpText.className = 'form-text text-muted';
-                helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
-                checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
-                return;
-            }
-            
-            // Show loading
-            if (spinner) spinner.style.display = 'inline-block';
-            
-            usernameCheckTimeout = setTimeout(() => {
-                fetch('/api/check_username', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username: username })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (spinner) spinner.style.display = 'none';
-                    
-                    if (data.exists) {
-                        if (data.is_self) {
-                            checkIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
-                            helpText.className = 'form-text text-warning';
-                            helpText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> This is your own username';
-                        } else if (data.is_connected) {
-                            checkIcon.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
-                            helpText.className = 'form-text text-success';
-                            helpText.innerHTML = '<i class="fas fa-check-circle"></i> User exists (already connected)';
-                        } else {
-                            checkIcon.innerHTML = '<i class="fas fa-info-circle text-info"></i>';
-                            helpText.className = 'form-text text-info';
-                            helpText.innerHTML = '<i class="fas fa-info-circle"></i> User exists (will auto-connect)';
-                        }
-                    } else {
-                        checkIcon.innerHTML = '<i class="fas fa-plus-circle text-success"></i>';
-                        helpText.className = 'form-text text-success';
-                        helpText.innerHTML = '<i class="fas fa-plus-circle"></i> New user will be created';
-                    }
-                })
-                .catch(error => {
-                    if (spinner) spinner.style.display = 'none';
-                    checkIcon.innerHTML = '<i class="fas fa-exclamation-circle text-danger"></i>';
-                    helpText.className = 'form-text text-danger';
-                    helpText.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error checking username';
-                });
-            }, 500);
-        });
-    }
-    
-    if (transactionModal) {
-        transactionModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; 
-            const entryId = button.getAttribute('data-entry-id');
-            const isEdit = entryId && entryId !== '0';
-
-            form.reset();
-            
-            if (isEdit) {
-                modalTitle.textContent = 'Edit Transaction';
-                modalIcon.className = 'fas fa-edit me-2';
-                form.action = editBasePath + entryId; 
-                modalSubmitBtn.textContent = 'Save Changes';
-                
-                fetchEntryData(entryId);
-            } else {
-                modalTitle.textContent = 'Add New Transaction';
-                modalIcon.className = 'fas fa-plus me-2';
-                form.action = addUrl; 
-                modalSubmitBtn.textContent = 'Add Transaction';
-                
-                form.querySelector('[name="transaction_type"]').value = 'debit';
-                if (form.querySelector('[name="connected_user"]')) {
-                    form.querySelector('[name="connected_user"]').value = '0';
-                }
-                
-                // Reset to "Select Existing" mode for new entries
-                if (selectExistingRadio) {
-                    selectExistingRadio.checked = true;
-                    existingUserDropdown.style.display = 'block';
-                    newUserInput.style.display = 'none';
-                    if (connectedUserSelect) connectedUserSelect.disabled = false;
-                    if (connectedUserInputText) connectedUserInputText.value = '';
-                    
-                    // Reset validation UI
-                    const helpText = document.getElementById('usernameHelpText');
-                    const checkIcon = document.getElementById('usernameCheckIcon');
-                    if (helpText) {
-                        helpText.className = 'form-text text-muted';
-                        helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
-                    }
-                    if (checkIcon) {
-                        checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
-                    }
-                }
-            }
-        });
-
-        modalSubmitBtn.addEventListener('click', function() {
-            form.submit();
-        });
-    }
-
-    function fetchEntryData(entryId) {
-        fetch(editBasePath + entryId, { method: 'GET' })
-            .then(response => {
-                if (!response.ok) throw new Error('Entry not found');
-                return response.json();
-            })
-            .then(data => {
-                if (data.description) {
-                    form.querySelector('[name="description"]').value = data.description;
-                }
-                if (data.amount) {
-                    form.querySelector('[name="amount"]').value = data.amount;
-                }
-                if (data.connected_user !== undefined) {
-                    const connectedUserField = form.querySelector('[name="connected_user"]');
-                    if (connectedUserField) {
-                        connectedUserField.value = data.connected_user;
-                    }
-                }
-                if (data.is_debit !== undefined) {
-                    form.querySelector('[name="transaction_type"]').value = data.is_debit ? 'debit' : 'credit';
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching entry data:', error);
-                alert('Could not load entry data for editing.');
-            });
-    }
-
-    // ----------------------------------------------------------------------
-    // Search/Filter Functions
-    // ----------------------------------------------------------------------
-    function getCurrentFilters() {
-        return {
-            username: searchInput ? searchInput.value.trim() : '',
-            fromDate: fromDateInput ? fromDateInput.value : '',
-            toDate: toDateInput ? toDateInput.value : ''
-        };
-    }
-    
-    function hasActiveFilters() {
-        const filters = getCurrentFilters();
-        return filters.username || filters.fromDate || filters.toDate;
-    }
-    
-    function updateFilterTags() {
-        const filters = getCurrentFilters();
-        let tags = [];
-        
-        if (filters.username) tags.push(`<span class="badge bg-primary me-1">User: ${filters.username}</span>`);
-        if (filters.fromDate) tags.push(`<span class="badge bg-info me-1">From: ${filters.fromDate}</span>`);
-        if (filters.toDate) tags.push(`<span class="badge bg-info me-1">To: ${filters.toDate}</span>`);
-        
-        if (tags.length > 0) {
-            filterTags.innerHTML = tags.join('');
-            activeFilters.style.display = 'block';
-        } else {
-            activeFilters.style.display = 'none';
-        }
-    }
-    
-    function performSearch() {
-        const filters = getCurrentFilters();
-        if (!hasActiveFilters()) {
-            showAllTransactions();
-            return;
-        }
-        
-        searchInfo.style.display = 'block';
-        searchResultText.textContent = 'Searching...';
-        updateFilterTags();
-        
-        const params = new URLSearchParams();
-        if (filters.username) params.append('username', filters.username);
-        if (filters.fromDate) params.append('from_date', filters.fromDate);
-        if (filters.toDate) params.append('to_date', filters.toDate);
-        
-        fetch(`/ledger/${ledgerId}/search?${params.toString()}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displaySearchResults(data, filters);
-                } else {
-                    showError(data.error || 'Search failed');
-                }
-            })
-            .catch(error => {
-                console.error('Search error:', error);
-                showError('Search failed. Please try again.');
-            });
-    }
-    
-    function displaySearchResults(data, filters) {
-        updateFilterTags();
-        if (data.results.length === 0 && data.total_transactions === 0) {
-            searchResultText.textContent = 'No transactions found matching the current filters';
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No matching transactions found</td></tr>';
-            updateBalanceForNoResults(filters);
-            return;
-        }
-        
-        searchResultText.textContent = `Found ${data.total_transactions} transaction(s)`;
-        updateBalanceForSearch(data, filters);
-        
-        let newTableContent = '';
-        if (data.results && data.results.length > 0) {
-            data.results.forEach(userResult => {
-                userResult.transactions.forEach(transaction => {
-                    newTableContent += buildTransactionRow(transaction, userResult.user);
-                });
-            });
-        }
-        tableBody.innerHTML = newTableContent;
-    }
-    
-    function buildTransactionRow(transaction, user) {
-        const date = new Date(transaction.created_at).toLocaleString();
-        const amountClass = transaction.is_debit ? 'transaction-debit' : 'transaction-credit';
-        const amountPrefix = transaction.is_debit ? '-' : '';
-        const typeClass = transaction.is_debit ? 'bg-danger' : 'bg-success';
-        const typeText = transaction.is_debit ? 'Debit' : 'Credit';
-        const userDisplay = user ? `<span class="badge bg-info">${user.username}</span>` : '<span class="text-muted">-</span>';
-        
-        return `
-            <tr>
-                <td>${date}</td>
-                <td>${transaction.description}</td>
-                <td>${userDisplay}</td>
-                <td class="${amountClass}">${amountPrefix}₹${transaction.amount.toFixed(2)}</td>
-                <td><span class="badge ${typeClass}">${typeText}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#transactionModal" 
-                            data-entry-id="${transaction.id}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </td>
-            </tr>`;
-    }
-    
-    function updateBalanceForSearch(data, filters) {
-        const totalBalance = data.total_balance || 0;
-        balanceTitle.textContent = 'Filtered Balance';
-        balanceAmount.textContent = `₹${totalBalance.toFixed(2)}`;
-        balanceAmount.className = `balance-display ${totalBalance >= 0 ? 'positive' : 'negative'}`;
-        balanceSubtext.style.display = 'block';
-    }
-    
-    function updateBalanceForNoResults(filters) {
-        balanceTitle.textContent = 'Filtered Balance';
-        balanceAmount.textContent = '₹0.00';
-        balanceAmount.className = 'balance-display positive';
-        balanceSubtext.style.display = 'block';
-    }
-    
-    function showError(message) {
-        searchResultText.textContent = message;
-        searchInfo.style.display = 'block';
-        activeFilters.style.display = 'none';
-    }
-    
-    function showAllTransactions() {
-        if (searchInput) searchInput.value = '';
-        if (fromDateInput) fromDateInput.value = '';
-        if (toDateInput) toDateInput.value = '';
-        searchInfo.style.display = 'none';
-        activeFilters.style.display = 'none';
-        if (tableBody) tableBody.innerHTML = originalTableContent;
-        balanceTitle.textContent = 'Current Balance';
-        balanceAmount.textContent = originalBalance;
-        balanceAmount.className = originalBalanceClass;
-        balanceSubtext.style.display = 'none';
-    }
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 300);
-        });
-    }
-    if (fromDateInput) fromDateInput.addEventListener('change', performSearch);
-    if (toDateInput) toDateInput.addEventListener('change', performSearch);
-    if (clearAllFiltersBtn) clearAllFiltersBtn.addEventListener('click', showAllTransactions);
-    document.getElementById('clearSearchBtn')?.addEventListener('click', showAllTransactions);
-    
-    {% endif %}
-});
-</script> -->
-
 {% endblock %}
