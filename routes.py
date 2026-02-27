@@ -1059,45 +1059,52 @@ def edit_ledger_entry(ledger_id, entry_id):
     ledger = Ledger.query.get_or_404(ledger_id)
     entry = LedgerEntry.query.get_or_404(entry_id)
 
-    # 1. Security Check: Verify ownership and ledger mode
+    # Security Check
     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or entry.ledger_id != ledger_id:
         abort(403)
 
     if not is_dummy and entry.connected_entry_id is not None and entry.description.lower().startswith("from "):
-        # This is a mirror entry initiated by a connected user. It should be read-only.
         abort(403)
 
-    is_ajax_get = (request.method == 'GET' and 
-                   (request.accept_mimetypes.accept_json or 
+    is_ajax_get = (request.method == 'GET' and
+                   (request.accept_mimetypes.accept_json or
                     request.is_json or
                     request.headers.get('X-Requested-With') == 'XMLHttpRequest'))
 
     if is_ajax_get:
-        # Determine the transaction type string
         transaction_type_value = 'debit' if entry.is_debit else 'credit'
-        
-        # Determine the connected user ID string (or '0' if None)
         connected_user_id_str = str(entry.connected_user_id) if entry.connected_user_id is not None else '0'
 
         data_for_modal = {
             'entry_id': entry.id,
             'description': entry.description,
-            'amount': float(entry.amount),    
-            'connected_user': connected_user_id_str, 
+            'amount': float(entry.amount),
+            'connected_user': connected_user_id_str,
             'transaction_type': transaction_type_value,
-            'success': True 
+            # Format for <input type="datetime-local"> — "YYYY-MM-DDTHH:MM"
+            'date': entry.date.strftime('%Y-%m-%dT%H:%M'),
+            'success': True
         }
-
         return jsonify(data_for_modal)
 
-    form = LedgerEntryForm(obj=entry) 
+    form = LedgerEntryForm(obj=entry)
+
+    # Helper: parse and apply the submitted date, or keep original
+    def apply_entry_date(target_entry):
+        entry_date_str = request.form.get('entry_date', '').strip()
+        if entry_date_str:
+            try:
+                from datetime import datetime as dt
+                target_entry.date = dt.strptime(entry_date_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                pass  # Keep original date if format is wrong
 
     if is_dummy:
-        # Dummy Mode: Simple update
         if form.validate_on_submit():
             entry.description = form.description.data
             entry.amount = form.amount.data
             entry.is_debit = form.transaction_type.data == 'debit'
+            apply_entry_date(entry)  # <-- save date
 
             db.session.commit()
             flash('Dummy ledger entry updated successfully!', 'success')
@@ -1107,86 +1114,77 @@ def edit_ledger_entry(ledger_id, entry_id):
         connections = User.query.join(Connection, or_(
             and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
             and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
-        )).filter(
-            Connection.status == 'accepted'
-        ).all()
+        )).filter(Connection.status == 'accepted').all()
         connection_user_ids = [u.id for u in connections]
         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
 
-        # Set initial value for connected_user field (Only needed for regular GET/POST fail)
         if request.method == 'GET':
-            # This is only executed for regular GETs (not AJAX, which is handled above)
             form.connected_user.data = entry.connected_user_id if entry.connected_user_id else 0
             form.transaction_type.data = 'debit' if entry.is_debit else 'credit'
-            
+
         if form.validate_on_submit():
             new_connected_user_id = form.connected_user.data
             old_connected_entry_id = entry.connected_entry_id
-            
-            # Validation Check
+
             if new_connected_user_id != 0 and new_connected_user_id not in connection_user_ids:
                 flash('Invalid connected user selected.', 'danger')
                 return redirect(url_for('edit_ledger_entry', ledger_id=ledger_id, entry_id=entry_id))
 
-            # Delete old mirror entry if connection changed or removed
+            # Delete old mirror if connection changed or removed
             if old_connected_entry_id and (new_connected_user_id == 0 or entry.connected_user_id != new_connected_user_id):
                 old_mirror = LedgerEntry.query.get(old_connected_entry_id)
                 if old_mirror:
                     db.session.delete(old_mirror)
-                    entry.connected_entry_id = None # Crucial cleanup
-                
-            # Update the current entry
+                    entry.connected_entry_id = None
+
+            # Update current entry
             is_debit = form.transaction_type.data == 'debit'
             entry.description = form.description.data
             entry.amount = form.amount.data
             entry.is_debit = is_debit
             entry.connected_user_id = new_connected_user_id if new_connected_user_id != 0 else None
-            
-            # --- Handle Mirror Entry Creation/Update ---
+            apply_entry_date(entry)  # <-- save date on main entry
+
+            # Handle mirror entry create/update
             if new_connected_user_id != 0:
                 connected_user_ledger = Ledger.query.filter_by(
                     user_id=new_connected_user_id,
                     is_dummy=is_dummy,
                     name="Personal Account"
                 ).first()
-                
+
                 if connected_user_ledger:
                     if entry.connected_entry_id:
-                        # Update existing mirror entry
                         mirror_entry = LedgerEntry.query.get(entry.connected_entry_id)
                         if mirror_entry:
                             mirror_entry.description = f"From {current_user.username}: {form.description.data}"
                             mirror_entry.amount = form.amount.data
                             mirror_entry.is_debit = not is_debit
                             mirror_entry.connected_user_id = current_user.id
-                        # If mirror not found, will commit and leave it unlinked.
-                        
+                            mirror_entry.date = entry.date  # <-- sync date to mirror
                     else:
-                        # Create a new mirror entry
                         mirror_entry = LedgerEntry(
                             description=f"From {current_user.username}: {form.description.data}",
                             amount=form.amount.data,
                             is_debit=not is_debit,
                             ledger_id=connected_user_ledger.id,
                             connected_user_id=current_user.id,
-                            connected_entry_id=entry.id
+                            connected_entry_id=entry.id,
+                            date=entry.date  # <-- new mirror gets same date
                         )
                         db.session.add(mirror_entry)
-                        db.session.flush() 
-                        entry.connected_entry_id = mirror_entry.id # Link back
+                        db.session.flush()
+                        entry.connected_entry_id = mirror_entry.id
 
             db.session.commit()
             flash('Ledger entry updated successfully!', 'success')
             return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
-        # Handle form errors for POST request that failed validation
         elif request.method == 'POST':
             for field, errors in form.errors.items():
                 for error in errors:
                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
-    
-    # Render the form (for GET requests or POST requests that failed validation)
-    # return render_template('edit_ledger_entry.html', form=form, ledger_id=ledger_id)
+
     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 

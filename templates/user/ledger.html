@@ -205,7 +205,7 @@
                             <h4 class="alert-heading">No Transactions Yet</h4>
                             <p>This ledger doesn't have any transactions.</p>
                             <hr>
-                            <p class="mb-0">Use the quick add form above to add your first transaction.</p>
+                            <p class="mb-0">Use the floating + button to add your first transaction.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -229,7 +229,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="transactionModalTitle">
-                        <i class="fas fa-plus me-2" id="modalIcon"></i>Add New Transaction
+                        <i class="fas fa-plus me-2"></i>Add New Transaction
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -260,6 +260,21 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                        </div>
+
+                        <!-- Date/Time field — only visible in edit mode -->
+                        <div class="mb-3" id="dateGroup" style="display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-alt me-1"></i>Date &amp; Time
+                            </label>
+                            <input type="datetime-local"
+                                   class="form-control"
+                                   name="entry_date"
+                                   id="entryDateInput">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Changes here also update the linked mirror entry (if any).
+                            </small>
                         </div>
                         
                         {% if not is_dummy %}
@@ -361,26 +376,16 @@
     font-weight: bold;
     margin: 0;
 }
-.balance-display.positive {
-    color: #198754;
-}
-.balance-display.negative {
-    color: #dc3545;
-}
-.transaction-credit {
-    color: #198754;
-    font-weight: 600;
-}
-.transaction-debit {
-    color: #dc3545;
-    font-weight: 600;
-}
+.balance-display.positive { color: #198754; }
+.balance-display.negative { color: #dc3545; }
+
+.transaction-credit { color: #198754; font-weight: 600; }
+.transaction-debit  { color: #dc3545; font-weight: 600; }
 
 .btn-check:checked + .btn-outline-primary {
     background-color: #0d6efd;
     color: white;
 }
-
 .btn-check:checked + .btn-outline-success {
     background-color: #198754;
     color: white;
@@ -389,29 +394,29 @@
 #newUserInput input {
     border: 2px dashed #198754;
 }
-
 #newUserInput input:focus {
     border-color: #198754;
     box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
 }
-
 #usernameCheckIcon {
     background-color: transparent;
-    border-left: none;
     border: 2px dashed #198754;
     border-left: none;
 }
 
+/* Date field highlight */
+#dateGroup .form-control {
+    border: 2px solid #0d6efd;
+}
+#dateGroup .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
 @media (max-width: 768px) {
-    #floatingAddBtn {
-        display: block !important;
-    }
-    .card-header .row {
-        flex-direction: column;
-    }
-    .card-header .row .col-md-6:last-child {
-        margin-top: 10px;
-    }
+    #floatingAddBtn { display: block !important; }
+    .card-header .row { flex-direction: column; }
+    .card-header .row .col-md-6:last-child { margin-top: 10px; }
 }
 </style>
 
@@ -421,58 +426,52 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if action != "create" %}
     const ledgerId = {{ ledger.id }};
     
-    const searchInput = document.getElementById('userSearchInput');
-    const fromDateInput = document.getElementById('fromDate');
-    const toDateInput = document.getElementById('toDate');
+    const searchInput      = document.getElementById('userSearchInput');
+    const fromDateInput    = document.getElementById('fromDate');
+    const toDateInput      = document.getElementById('toDate');
     const clearAllFiltersBtn = document.getElementById('clearAllFilters');
-    const searchInfo = document.getElementById('searchInfo');
-    const searchResultText = document.getElementById('searchResultText');
-    const activeFilters = document.getElementById('activeFilters');
-    const filterTags = document.getElementById('filterTags');
-    const tableBody = document.getElementById('transactionTableBody');
-    const balanceTitle = document.getElementById('balanceTitle');
-    const balanceAmount = document.getElementById('balanceAmount');
-    const balanceSubtext = document.getElementById('balanceSubtext');
+    const tableBody        = document.getElementById('transactionTableBody');
     
     let searchTimeout;
     let originalTableContent = tableBody ? tableBody.innerHTML : '';
-    let originalBalance = balanceAmount ? balanceAmount.textContent : '';
-    let originalBalanceClass = balanceAmount ? balanceAmount.className : '';
     
-    // ----------------------------------------------------------------------
-    // Modal Logic
-    // ----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Modal references
+    // -----------------------------------------------------------------------
     const transactionModal = document.getElementById('transactionModal');
-    const modalTitle = document.getElementById('transactionModalTitle');
-    const modalIcon = document.getElementById('modalIcon');
-    const form = document.getElementById('transactionForm');
-    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
-    
-    const addUrl = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
-    const editBasePath = "/ledger/{{ ledger.id }}/edit_entry/"; 
-    const deleteBasePath = "/ledger/{{ ledger.id }}/delete_entry/";
-    
-    const selectExistingRadio = document.getElementById('selectExisting');
-    const createNewRadio = document.getElementById('createNew');
+    const modalTitle       = document.getElementById('transactionModalTitle');
+    const form             = document.getElementById('transactionForm');
+    const modalSubmitBtn   = document.getElementById('modalSubmitBtn');
+    const dateGroup        = document.getElementById('dateGroup');
+    const entryDateInput   = document.getElementById('entryDateInput');
+
+    const addUrl        = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
+    const editBasePath  = "/ledger/{{ ledger.id }}/edit_entry/";
+    const deleteBasePath= "/ledger/{{ ledger.id }}/delete_entry/";
+
+    const selectExistingRadio  = document.getElementById('selectExisting');
+    const createNewRadio       = document.getElementById('createNew');
     const existingUserDropdown = document.getElementById('existingUserDropdown');
-    const newUserInput = document.getElementById('newUserInput');
-    const connectedUserSelect = document.querySelector('[name="connected_user"]');
+    const newUserInputDiv      = document.getElementById('newUserInput');
+    const connectedUserSelect  = document.querySelector('[name="connected_user"]');
     const connectedUserInputText = document.getElementById('connected_user_input');
-    
+
+    // -----------------------------------------------------------------------
+    // Toggle existing / new user
+    // -----------------------------------------------------------------------
     if (selectExistingRadio && createNewRadio) {
         selectExistingRadio.addEventListener('change', function() {
             if (this.checked) {
                 existingUserDropdown.style.display = 'block';
-                newUserInput.style.display = 'none';
+                newUserInputDiv.style.display = 'none';
                 if (connectedUserInputText) connectedUserInputText.value = '';
                 if (connectedUserSelect) connectedUserSelect.disabled = false;
             }
         });
-        
         createNewRadio.addEventListener('change', function() {
             if (this.checked) {
                 existingUserDropdown.style.display = 'none';
-                newUserInput.style.display = 'block';
+                newUserInputDiv.style.display = 'block';
                 if (connectedUserSelect) {
                     connectedUserSelect.value = '0';
                     connectedUserSelect.disabled = true;
@@ -480,7 +479,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
+    // -----------------------------------------------------------------------
+    // Real-time username check
+    // -----------------------------------------------------------------------
     let usernameCheckTimeout;
     if (connectedUserInputText) {
         connectedUserInputText.addEventListener('input', function() {
@@ -489,23 +491,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const helpText = document.getElementById('usernameHelpText');
             const checkIcon = document.getElementById('usernameCheckIcon');
             const spinner = checkIcon.querySelector('.fa-spin');
-            
+
             if (!username) {
                 helpText.className = 'form-text text-muted';
                 helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
                 checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
                 return;
             }
-            
             if (spinner) spinner.style.display = 'inline-block';
-            
+
             usernameCheckTimeout = setTimeout(() => {
                 fetch('/api/check_username', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: username })
+                    body: JSON.stringify({ username })
                 })
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
                     if (spinner) spinner.style.display = 'none';
                     if (data.exists) {
@@ -531,31 +532,36 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 500);
         });
     }
-    
+
+    // -----------------------------------------------------------------------
+    // Add / Edit modal open handler
+    // -----------------------------------------------------------------------
     if (transactionModal) {
-        transactionModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; 
+        transactionModal.addEventListener('show.bs.modal', function(event) {
+            const button  = event.relatedTarget;
             const entryId = button.getAttribute('data-entry-id');
-            const isEdit = entryId && entryId !== '0';
+            const isEdit  = entryId && entryId !== '0';
 
             form.reset();
-            
+
             if (isEdit) {
-                modalTitle.innerHTML = '<i class="fas fa-edit me-2" id="modalIcon"></i>Edit Transaction';
-                form.action = editBasePath + entryId; 
+                modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Transaction';
+                form.action = editBasePath + entryId;
                 modalSubmitBtn.textContent = 'Save Changes';
+                // Show date field only when editing
+                if (dateGroup) dateGroup.style.display = 'block';
                 fetchEntryData(entryId);
             } else {
-                modalTitle.innerHTML = '<i class="fas fa-plus me-2" id="modalIcon"></i>Add New Transaction';
-                form.action = addUrl; 
+                modalTitle.innerHTML = '<i class="fas fa-plus me-2"></i>Add New Transaction';
+                form.action = addUrl;
                 modalSubmitBtn.textContent = 'Add Transaction';
-                
+                // Hide date field for new entries
+                if (dateGroup) dateGroup.style.display = 'none';
+                if (entryDateInput) entryDateInput.value = '';
+
                 form.querySelector('[name="transaction_type"]').value = 'debit';
                 if (connectedUserSelect) connectedUserSelect.value = '0';
-                
-                if (selectExistingRadio) {
-                    selectExistingRadio.click(); 
-                }
+                if (selectExistingRadio) selectExistingRadio.click();
             }
         });
 
@@ -565,6 +571,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // -----------------------------------------------------------------------
+    // Fetch entry data for editing (AJAX GET)
+    // -----------------------------------------------------------------------
     function fetchEntryData(entryId) {
         fetch(editBasePath + entryId, { method: 'GET' })
             .then(response => {
@@ -572,14 +581,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                if (data.description) form.querySelector('[name="description"]').value = data.description;
-                if (data.amount) form.querySelector('[name="amount"]').value = data.amount;
-                if (data.connected_user !== undefined && connectedUserSelect) {
+                if (data.description !== undefined)
+                    form.querySelector('[name="description"]').value = data.description;
+                if (data.amount !== undefined)
+                    form.querySelector('[name="amount"]').value = data.amount;
+                if (data.connected_user !== undefined && connectedUserSelect)
                     connectedUserSelect.value = data.connected_user;
-                }
-                if (data.is_debit !== undefined) {
-                    form.querySelector('[name="transaction_type"]').value = data.is_debit ? 'debit' : 'credit';
-                }
+                if (data.transaction_type !== undefined)
+                    form.querySelector('[name="transaction_type"]').value = data.transaction_type;
+                // Populate date — backend returns "YYYY-MM-DDTHH:MM"
+                if (data.date && entryDateInput)
+                    entryDateInput.value = data.date;
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -587,78 +599,74 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // ----------------------------------------------------------------------
-    // Delete Entry Logic
-    // ----------------------------------------------------------------------
-    const deleteModal = document.getElementById('deleteModal');
+    // -----------------------------------------------------------------------
+    // Delete modal
+    // -----------------------------------------------------------------------
+    const deleteModal     = document.getElementById('deleteModal');
     const deleteEntryForm = document.getElementById('deleteEntryForm');
     const deleteEntryDesc = document.getElementById('deleteEntryDesc');
 
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.delete-entry-btn');
         if (!btn) return;
-        const entryId = btn.getAttribute('data-entry-id');
-        const desc = btn.getAttribute('data-entry-desc');
-        deleteEntryDesc.textContent = desc;
-        deleteEntryForm.action = deleteBasePath + entryId;
+        deleteEntryDesc.textContent = btn.getAttribute('data-entry-desc');
+        deleteEntryForm.action = deleteBasePath + btn.getAttribute('data-entry-id');
         new bootstrap.Modal(deleteModal).show();
     });
 
-    // ----------------------------------------------------------------------
-    // Search & Filter Functions
-    // ----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Search & Filter
+    // -----------------------------------------------------------------------
     function performSearch() {
         const filters = {
             username: searchInput ? searchInput.value.trim() : '',
             fromDate: fromDateInput ? fromDateInput.value : '',
-            toDate: toDateInput ? toDateInput.value : ''
+            toDate:   toDateInput   ? toDateInput.value   : ''
         };
-        
         if (!filters.username && !filters.fromDate && !filters.toDate) {
             showAllTransactions();
             return;
         }
-        
         const params = new URLSearchParams();
-        if (filters.username) params.append('username', filters.username);
-        if (filters.fromDate) params.append('from_date', filters.fromDate);
-        if (filters.toDate) params.append('to_date', filters.toDate);
-        
+        if (filters.username) params.append('username',   filters.username);
+        if (filters.fromDate) params.append('from_date',  filters.fromDate);
+        if (filters.toDate)   params.append('to_date',    filters.toDate);
+
         fetch(`/ledger/${ledgerId}/search?${params.toString()}`)
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    let newTableContent = '';
+                    let html = '';
                     data.results.forEach(userResult => {
-                        userResult.transactions.forEach(transaction => {
-                            newTableContent += buildTransactionRow(transaction, userResult.user);
+                        userResult.transactions.forEach(tx => {
+                            html += buildTransactionRow(tx, userResult.user);
                         });
                     });
-                    tableBody.innerHTML = newTableContent || '<tr><td colspan="6" class="text-center">No results</td></tr>';
+                    tableBody.innerHTML = html || '<tr><td colspan="6" class="text-center">No results</td></tr>';
                 }
             });
     }
-    
-    function buildTransactionRow(transaction, user) {
-        const date = new Date(transaction.created_at).toLocaleString();
+
+    function buildTransactionRow(tx, user) {
+        const date = new Date(tx.created_at).toLocaleString();
         return `
             <tr>
                 <td>${date}</td>
-                <td>${transaction.description}</td>
+                <td>${tx.description}</td>
                 <td><span class="badge bg-info">${user ? user.username : '-'}</span></td>
-                <td class="${transaction.is_debit ? 'transaction-debit' : 'transaction-credit'}">
-                    ${transaction.is_debit ? '-' : ''}₹${transaction.amount.toFixed(2)}
+                <td class="${tx.is_debit ? 'transaction-debit' : 'transaction-credit'}">
+                    ${tx.is_debit ? '-' : ''}₹${tx.amount.toFixed(2)}
                 </td>
-                <td><span class="badge ${transaction.is_debit ? 'bg-danger' : 'bg-success'}">${transaction.is_debit ? 'Debit' : 'Credit'}</span></td>
+                <td><span class="badge ${tx.is_debit ? 'bg-danger' : 'bg-success'}">${tx.is_debit ? 'Debit' : 'Credit'}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
-                            data-bs-toggle="modal" data-bs-target="#transactionModal" 
-                            data-entry-id="${transaction.id}">
+                    <button class="btn btn-sm btn-outline-secondary edit-entry-btn"
+                            data-bs-toggle="modal" data-bs-target="#transactionModal"
+                            data-entry-id="${tx.id}">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-danger delete-entry-btn ms-1"
-                            data-entry-id="${transaction.id}"
-                            data-entry-desc="${transaction.description}">
+                            data-entry-id="${tx.id}"
+                            data-entry-desc="${tx.description}">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -666,18 +674,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showAllTransactions() {
-        if (tableBody) tableBody.innerHTML = originalTableContent;
-        if (searchInput) searchInput.value = '';
-        if (fromDateInput) fromDateInput.value = '';
-        if (toDateInput) toDateInput.value = '';
+        if (tableBody)     tableBody.innerHTML = originalTableContent;
+        if (searchInput)   searchInput.value   = '';
+        if (fromDateInput) fromDateInput.value  = '';
+        if (toDateInput)   toDateInput.value    = '';
     }
 
-    if (searchInput) searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(performSearch, 300);
-    });
+    if (searchInput)   searchInput.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(performSearch, 300); });
     if (fromDateInput) fromDateInput.addEventListener('change', performSearch);
-    if (toDateInput) toDateInput.addEventListener('change', performSearch);
+    if (toDateInput)   toDateInput.addEventListener('change', performSearch);
     if (clearAllFiltersBtn) clearAllFiltersBtn.addEventListener('click', showAllTransactions);
 
     {% endif %}
