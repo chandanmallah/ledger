@@ -163,7 +163,7 @@
                                 <tbody id="transactionTableBody">
                                     {% for entry in ledger.entries|sort(attribute='date', reverse=true) %}
                                         <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}" data-entry-id="{{ entry.id }}" data-entry-date="{{ entry.date.isoformat() }}">
-                                            <td>{{ entry.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
                                             <td>{{ entry.description }}</td>
                                             <td>
                                                 {% if entry.connected_user %}
@@ -252,7 +252,7 @@
                         
                         <div class="mb-3">
                             <label class="form-label">{{ form.amount.label }}</label>
-                            {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01") }}
+                            {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01", id="amountInput") }}
                             {% if form.amount.errors %}
                                 <div class="text-danger">
                                     {% for error in form.amount.errors %}
@@ -262,19 +262,16 @@
                             {% endif %}
                         </div>
 
-                        <!-- Date/Time field — only visible in edit mode -->
-                        <div class="mb-3" id="dateGroup" style="display: none;">
+                        <!-- Date field — always visible for both add and edit -->
+                        <div class="mb-3" id="dateGroup">
                             <label class="form-label">
-                                <i class="fas fa-calendar-alt me-1"></i>Date &amp; Time
+                                <i class="fas fa-calendar-alt me-1"></i>Date
                             </label>
-                            <input type="datetime-local"
+                            <input type="date"
                                    class="form-control"
                                    name="entry_date"
-                                   id="entryDateInput">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Changes here also update the linked mirror entry (if any).
-                            </small>
+                                   id="entryDateInput"
+                                   required>
                         </div>
                         
                         {% if not is_dummy %}
@@ -412,7 +409,6 @@
     border-color: #0d6efd;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
-
 @media (max-width: 768px) {
     #floatingAddBtn { display: block !important; }
     .card-header .row { flex-direction: column; }
@@ -548,17 +544,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Transaction';
                 form.action = editBasePath + entryId;
                 modalSubmitBtn.textContent = 'Save Changes';
-                // Show date field only when editing
-                if (dateGroup) dateGroup.style.display = 'block';
                 fetchEntryData(entryId);
             } else {
                 modalTitle.innerHTML = '<i class="fas fa-plus me-2"></i>Add New Transaction';
                 form.action = addUrl;
                 modalSubmitBtn.textContent = 'Add Transaction';
-                // Hide date field for new entries
-                if (dateGroup) dateGroup.style.display = 'none';
-                if (entryDateInput) entryDateInput.value = '';
-
+                // Pre-fill today's date for new entries
+                if (entryDateInput) {
+                    const today = new Date().toISOString().split('T')[0];
+                    entryDateInput.value = today;
+                }
                 form.querySelector('[name="transaction_type"]').value = 'debit';
                 if (connectedUserSelect) connectedUserSelect.value = '0';
                 if (selectExistingRadio) selectExistingRadio.click();
@@ -566,6 +561,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         modalSubmitBtn.addEventListener('click', function() {
+            // Strip leading "+" from amount before submitting
+            const amountInput = document.getElementById('amountInput');
+            if (amountInput && amountInput.value.startsWith('+')) {
+                amountInput.value = amountInput.value.slice(1);
+            }
             if (connectedUserSelect) connectedUserSelect.disabled = false;
             form.submit();
         });
@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     connectedUserSelect.value = data.connected_user;
                 if (data.transaction_type !== undefined)
                     form.querySelector('[name="transaction_type"]').value = data.transaction_type;
-                // Populate date — backend returns "YYYY-MM-DDTHH:MM"
+                // Populate date — backend returns "YYYY-MM-DD"
                 if (data.date && entryDateInput)
                     entryDateInput.value = data.date;
             })
@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function buildTransactionRow(tx, user) {
-        const date = new Date(tx.created_at).toLocaleString();
+        const date = new Date(tx.created_at).toLocaleDateString();
         return `
             <tr>
                 <td>${date}</td>

@@ -407,12 +407,12 @@ def create_ledger():
 
 
 
-
 @app.route('/ledger/<int:ledger_id>')
 @login_required
 def view_ledger(ledger_id):
     is_dummy = is_using_dummy()
     ledger = Ledger.query.get_or_404(ledger_id)
+    print(ledger)
 
     # Security check
     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
@@ -430,63 +430,140 @@ def view_ledger(ledger_id):
 
     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
 
-    today = date.today()
-    first_day_of_current_month = today.replace(day=1)
+    # -------------------------------------------------------------------
+    # FIX: Fetch ALL entries, not just current month.
+    # The old month-filter approach caused entries edited to a past date
+    # to disappear from the table entirely.
+    # -------------------------------------------------------------------
+    all_entries = LedgerEntry.query.filter(
+        LedgerEntry.ledger_id == ledger.id
+    ).order_by(LedgerEntry.date.desc()).all()
+    print(all_entries)    
 
-    # Balance from ALL entries before this month
-    previous_month_balance = db.session.query(
-        func.sum(
-            case(
-                (LedgerEntry.is_debit == True, -LedgerEntry.amount),
-                else_=LedgerEntry.amount
-            )
-        )
-    ).filter(
-        LedgerEntry.ledger_id == ledger.id,
-        LedgerEntry.date < first_day_of_current_month
-    ).scalar() or 0.0
+    # Simple, correct balance from ALL entries
+    current_balance = sum(
+        (-e.amount if e.is_debit else e.amount)
+        for e in all_entries
+    )
 
-    # Current month entries only
-    current_month_entries = LedgerEntry.query.filter(
-        LedgerEntry.ledger_id == ledger.id,
-        LedgerEntry.date >= first_day_of_current_month
-    ).order_by(LedgerEntry.date.asc()).all()
-
-    # Running total: start from previous month balance + current month
-    current_balance = previous_month_balance
-    for entry in current_month_entries:
-        if entry.is_debit:
-            current_balance -= entry.amount
-        else:
-            current_balance += entry.amount
-
-    # Virtual aggregated entry for display (not saved to DB)
-    aggregated_entry = {
-        'date': first_day_of_current_month,
-        'description': 'Previous Month Aggregated Balance',
-        'amount': abs(previous_month_balance),
-        'is_debit': previous_month_balance < 0,
-        'is_aggregated': True
-    }
-
-    all_entries_to_display = [aggregated_entry] + current_month_entries
-
-    # -----------------------------------------------------------------------
-    # FIX: Monkey-patch ledger.entries so the template uses ONLY current month
-    # entries (the ones we filtered). This prevents the template from iterating
-    # over ledger.entries (the full relationship) which caused the balance
-    # to appear wrong vs the table contents.
-    # -----------------------------------------------------------------------
-    ledger.entries = current_month_entries
+    # Assign to ledger.entries so the template can iterate normally
+    ledger.entries = all_entries
 
     return render_template('user/ledger.html',
                            title=f'Ledger: {ledger.name}',
                            ledger=ledger,
                            form=form,
                            balance=current_balance,
-                           all_entries=all_entries_to_display,
                            is_dummy=is_dummy,
                            action="view")
+
+
+# -------------------------------------------------------------------
+# FIX: Strip "+" sign from amount before saving in add_ledger_entry
+# Add this inside your add_ledger_entry route before form validation,
+# or handle it in the form's validate method.
+# The cleanest fix is a custom validator on your LedgerEntryForm:
+# -------------------------------------------------------------------
+
+# In your forms.py, update the amount field validator:
+#
+# amount = DecimalField('Amount', validators=[
+#     DataRequired(),
+#     NumberRange(min=0.01, message="Amount must be greater than 0")
+# ])
+#
+# And add this method to your LedgerEntryForm class:
+#
+# def validate_amount(self, field):
+#     if field.data is None:
+#         raise ValidationError("Amount is required.")
+#     if field.data <= 0:
+#         raise ValidationError("Amount must be greater than 0.")
+#
+# The "+" sign issue: browsers allow "+" in number inputs but 
+# Flask-WTF's DecimalField handles it fine — it parses "+700" as 700.
+# So actually the + sign should already work. If it's not opening the
+# modal, the issue is the button click handler. See ledger.html fix below.
+
+# @app.route('/ledger/<int:ledger_id>')
+# @login_required
+# def view_ledger(ledger_id):
+#     is_dummy = is_using_dummy()
+#     ledger = Ledger.query.get_or_404(ledger_id)
+
+#     # Security check
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+#         abort(403)
+
+#     form = LedgerEntryForm()
+#     form.ledger_id.data = ledger_id
+
+#     connections = User.query.join(Connection, or_(
+#         and_(Connection.user_id == current_user.id,
+#              Connection.connected_user_id == User.id),
+#         and_(Connection.connected_user_id == current_user.id,
+#              Connection.user_id == User.id)
+#     )).filter(Connection.status == 'accepted').all()
+
+#     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+
+#     today = date.today()
+#     first_day_of_current_month = today.replace(day=1)
+
+#     # Balance from ALL entries before this month
+#     previous_month_balance = db.session.query(
+#         func.sum(
+#             case(
+#                 (LedgerEntry.is_debit == True, -LedgerEntry.amount),
+#                 else_=LedgerEntry.amount
+#             )
+#         )
+#     ).filter(
+#         LedgerEntry.ledger_id == ledger.id,
+#         LedgerEntry.date < first_day_of_current_month
+#     ).scalar() or 0.0
+
+#     # Current month entries only
+#     current_month_entries = LedgerEntry.query.filter(
+#         LedgerEntry.ledger_id == ledger.id,
+#         LedgerEntry.date >= first_day_of_current_month
+#     ).order_by(LedgerEntry.date.asc()).all()
+
+#     # Running total: start from previous month balance + current month
+#     current_balance = previous_month_balance
+#     for entry in current_month_entries:
+#         if entry.is_debit:
+#             current_balance -= entry.amount
+#         else:
+#             current_balance += entry.amount
+
+#     # Virtual aggregated entry for display (not saved to DB)
+#     aggregated_entry = {
+#         'date': first_day_of_current_month,
+#         'description': 'Previous Month Aggregated Balance',
+#         'amount': abs(previous_month_balance),
+#         'is_debit': previous_month_balance < 0,
+#         'is_aggregated': True
+#     }
+
+#     all_entries_to_display = [aggregated_entry] + current_month_entries
+
+#     # -----------------------------------------------------------------------
+#     # FIX: Monkey-patch ledger.entries so the template uses ONLY current month
+#     # entries (the ones we filtered). This prevents the template from iterating
+#     # over ledger.entries (the full relationship) which caused the balance
+#     # to appear wrong vs the table contents.
+#     # -----------------------------------------------------------------------
+#     ledger.entries = current_month_entries
+
+#     return render_template('user/ledger.html',
+#                            title=f'Ledger: {ledger.name}',
+#                            ledger=ledger,
+#                            form=form,
+#                            balance=current_balance,
+#                            all_entries=all_entries_to_display,
+#                            is_dummy=is_dummy,
+#                            action="view")
 
 
 # ---------------------------------------------------------------------------
@@ -1051,6 +1128,7 @@ def user_summary():
                            selected_ledger_id=selected_ledger_id,
                            search_query=username)
 
+
 @app.route('/ledger/<int:ledger_id>/edit_entry/<int:entry_id>', methods=['GET', 'POST'])
 @login_required
 def edit_ledger_entry(ledger_id, entry_id):
@@ -1081,8 +1159,8 @@ def edit_ledger_entry(ledger_id, entry_id):
             'amount': float(entry.amount),
             'connected_user': connected_user_id_str,
             'transaction_type': transaction_type_value,
-            # Format for <input type="datetime-local"> — "YYYY-MM-DDTHH:MM"
-            'date': entry.date.strftime('%Y-%m-%dT%H:%M'),
+            # Format for <input type="date"> — "YYYY-MM-DD"
+            'date': entry.date.strftime('%Y-%m-%d'),
             'success': True
         }
         return jsonify(data_for_modal)
@@ -1095,7 +1173,8 @@ def edit_ledger_entry(ledger_id, entry_id):
         if entry_date_str:
             try:
                 from datetime import datetime as dt
-                target_entry.date = dt.strptime(entry_date_str, '%Y-%m-%dT%H:%M')
+                # Parse date-only input (YYYY-MM-DD), set time to noon
+                target_entry.date = dt.strptime(entry_date_str, '%Y-%m-%d').replace(hour=12, minute=0, second=0)
             except ValueError:
                 pass  # Keep original date if format is wrong
 
@@ -1186,6 +1265,142 @@ def edit_ledger_entry(ledger_id, entry_id):
                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
 
     return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+# @app.route('/ledger/<int:ledger_id>/edit_entry/<int:entry_id>', methods=['GET', 'POST'])
+# @login_required
+# def edit_ledger_entry(ledger_id, entry_id):
+#     is_dummy = is_using_dummy()
+
+#     ledger = Ledger.query.get_or_404(ledger_id)
+#     entry = LedgerEntry.query.get_or_404(entry_id)
+
+#     # Security Check
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or entry.ledger_id != ledger_id:
+#         abort(403)
+
+#     if not is_dummy and entry.connected_entry_id is not None and entry.description.lower().startswith("from "):
+#         abort(403)
+
+#     is_ajax_get = (request.method == 'GET' and
+#                    (request.accept_mimetypes.accept_json or
+#                     request.is_json or
+#                     request.headers.get('X-Requested-With') == 'XMLHttpRequest'))
+
+#     if is_ajax_get:
+#         transaction_type_value = 'debit' if entry.is_debit else 'credit'
+#         connected_user_id_str = str(entry.connected_user_id) if entry.connected_user_id is not None else '0'
+
+#         data_for_modal = {
+#             'entry_id': entry.id,
+#             'description': entry.description,
+#             'amount': float(entry.amount),
+#             'connected_user': connected_user_id_str,
+#             'transaction_type': transaction_type_value,
+#             # Format for <input type="datetime-local"> — "YYYY-MM-DDTHH:MM"
+#             'date': entry.date.strftime('%Y-%m-%dT%H:%M'),
+#             'success': True
+#         }
+#         return jsonify(data_for_modal)
+
+#     form = LedgerEntryForm(obj=entry)
+
+#     # Helper: parse and apply the submitted date, or keep original
+#     def apply_entry_date(target_entry):
+#         entry_date_str = request.form.get('entry_date', '').strip()
+#         if entry_date_str:
+#             try:
+#                 from datetime import datetime as dt
+#                 target_entry.date = dt.strptime(entry_date_str, '%Y-%m-%dT%H:%M')
+#             except ValueError:
+#                 pass  # Keep original date if format is wrong
+
+#     if is_dummy:
+#         if form.validate_on_submit():
+#             entry.description = form.description.data
+#             entry.amount = form.amount.data
+#             entry.is_debit = form.transaction_type.data == 'debit'
+#             apply_entry_date(entry)  # <-- save date
+
+#             db.session.commit()
+#             flash('Dummy ledger entry updated successfully!', 'success')
+#             return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+#     else:
+#         connections = User.query.join(Connection, or_(
+#             and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
+#             and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
+#         )).filter(Connection.status == 'accepted').all()
+#         connection_user_ids = [u.id for u in connections]
+#         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+
+#         if request.method == 'GET':
+#             form.connected_user.data = entry.connected_user_id if entry.connected_user_id else 0
+#             form.transaction_type.data = 'debit' if entry.is_debit else 'credit'
+
+#         if form.validate_on_submit():
+#             new_connected_user_id = form.connected_user.data
+#             old_connected_entry_id = entry.connected_entry_id
+
+#             if new_connected_user_id != 0 and new_connected_user_id not in connection_user_ids:
+#                 flash('Invalid connected user selected.', 'danger')
+#                 return redirect(url_for('edit_ledger_entry', ledger_id=ledger_id, entry_id=entry_id))
+
+#             # Delete old mirror if connection changed or removed
+#             if old_connected_entry_id and (new_connected_user_id == 0 or entry.connected_user_id != new_connected_user_id):
+#                 old_mirror = LedgerEntry.query.get(old_connected_entry_id)
+#                 if old_mirror:
+#                     db.session.delete(old_mirror)
+#                     entry.connected_entry_id = None
+
+#             # Update current entry
+#             is_debit = form.transaction_type.data == 'debit'
+#             entry.description = form.description.data
+#             entry.amount = form.amount.data
+#             entry.is_debit = is_debit
+#             entry.connected_user_id = new_connected_user_id if new_connected_user_id != 0 else None
+#             apply_entry_date(entry)  # <-- save date on main entry
+
+#             # Handle mirror entry create/update
+#             if new_connected_user_id != 0:
+#                 connected_user_ledger = Ledger.query.filter_by(
+#                     user_id=new_connected_user_id,
+#                     is_dummy=is_dummy,
+#                     name="Personal Account"
+#                 ).first()
+
+#                 if connected_user_ledger:
+#                     if entry.connected_entry_id:
+#                         mirror_entry = LedgerEntry.query.get(entry.connected_entry_id)
+#                         if mirror_entry:
+#                             mirror_entry.description = f"From {current_user.username}: {form.description.data}"
+#                             mirror_entry.amount = form.amount.data
+#                             mirror_entry.is_debit = not is_debit
+#                             mirror_entry.connected_user_id = current_user.id
+#                             mirror_entry.date = entry.date  # <-- sync date to mirror
+#                     else:
+#                         mirror_entry = LedgerEntry(
+#                             description=f"From {current_user.username}: {form.description.data}",
+#                             amount=form.amount.data,
+#                             is_debit=not is_debit,
+#                             ledger_id=connected_user_ledger.id,
+#                             connected_user_id=current_user.id,
+#                             connected_entry_id=entry.id,
+#                             date=entry.date  # <-- new mirror gets same date
+#                         )
+#                         db.session.add(mirror_entry)
+#                         db.session.flush()
+#                         entry.connected_entry_id = mirror_entry.id
+
+#             db.session.commit()
+#             flash('Ledger entry updated successfully!', 'success')
+#             return redirect(url_for('view_ledger', ledger_id=ledger_id))
+
+#         elif request.method == 'POST':
+#             for field, errors in form.errors.items():
+#                 for error in errors:
+#                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+
+#     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 
 from sqlalchemy import func
