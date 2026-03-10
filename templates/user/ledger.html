@@ -92,60 +92,72 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="mb-0">
-                                <i class="fas fa-list me-2"></i>Transaction History
-                            </h5>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-end">
-                                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters">
-                                    <i class="fas fa-search me-1"></i>Search & Filter
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="collapse mt-3" id="searchFilters">
-                        <div class="row g-3 p-3 bg-dark text-white rounded">
-                            <div class="col-md-4">
-                                <label class="form-label small">Search by username</label>
-                                <input type="text" class="form-control form-control-sm" 
-                                        id="userSearchInput" 
-                                        placeholder="Enter username...">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small">From Date</label>
-                                <input type="date" class="form-control form-control-sm" id="fromDate">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small">To Date</label>
-                                <input type="date" class="form-control form-control-sm" id="toDate">
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-secondary btn-sm w-100" id="clearAllFilters">
-                                    <i class="fas fa-times"></i> Clear
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="searchInfo" class="px-3 py-2 bg-dark text-white border-bottom" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span id="searchResultText" class="text-dark"></span>
-                        <button class="btn btn-sm btn-outline-secondary" id="clearSearchBtn">
-                            <i class="fas fa-times"></i>
+
+                <!-- ── Card header with filter panel ── -->
+                <div class="card-header p-0">
+
+                    <!-- Title row -->
+                    <div class="d-flex align-items-center justify-content-between px-3 py-2" style="min-height:52px;">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2 text-primary"></i>Transaction History
+                        </h5>
+                        <button class="btn filter-toggle-btn" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#searchFilters"
+                                id="filterToggleBtn">
+                            <i class="fas fa-sliders-h me-1"></i>Filters
                         </button>
                     </div>
-                    <div id="activeFilters" class="mt-2" style="display: none;">
-                        <small class="text-muted">Active filters: </small>
-                        <span id="filterTags"></span>
+
+                    <!-- Collapsible filter panel -->
+                    <div class="collapse" id="searchFilters">
+                        <div class="filter-panel px-3 pb-3 pt-1">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-lg-4 col-md-12">
+                                    <label class="filter-label">
+                                        <i class="fas fa-user me-1"></i>Username
+                                    </label>
+                                    <input type="text" class="form-control filter-input"
+                                           id="userSearchInput"
+                                           placeholder="Search by username…"
+                                           autocomplete="off">
+                                </div>
+                                <div class="col-lg-3 col-md-5 col-6">
+                                    <label class="filter-label">
+                                        <i class="fas fa-calendar me-1"></i>From date
+                                    </label>
+                                    <input type="date" class="form-control filter-input" id="fromDate">
+                                </div>
+                                <div class="col-lg-3 col-md-5 col-6">
+                                    <label class="filter-label">
+                                        <i class="fas fa-calendar-check me-1"></i>To date
+                                    </label>
+                                    <input type="date" class="form-control filter-input" id="toDate">
+                                </div>
+                                <div class="col-lg-2 col-md-2 col-12 d-flex gap-2">
+                                    <button class="btn filter-search-btn flex-grow-1" id="applyFiltersBtn">
+                                        <i class="fas fa-search me-1"></i>Search
+                                    </button>
+                                    <button class="btn filter-clear-btn" id="clearAllFilters" title="Clear all filters">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active-filter chips / result count -->
+                    <div id="searchInfo" style="display:none;" class="px-3 pb-2 border-top">
+                        <div class="d-flex align-items-center gap-2 flex-wrap pt-2">
+                            <span id="searchResultText" class="filter-result-text"></span>
+                            <div id="filterTags" class="d-flex gap-1 flex-wrap"></div>
+                            <button class="btn btn-sm ms-auto clear-results-btn" id="clearSearchBtn">
+                                <i class="fas fa-times me-1"></i>Clear results
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
+                <!-- ── end card-header ── -->
+
                 <div class="card-body p-0" id="transactionContainer">
                     {% if ledger.entries %}
                         <div class="table-responsive">
@@ -162,7 +174,9 @@
                                 </thead>
                                 <tbody id="transactionTableBody">
                                     {% for entry in ledger.entries|sort(attribute='date', reverse=true) %}
-                                        <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}" data-entry-id="{{ entry.id }}" data-entry-date="{{ entry.date.isoformat() }}">
+                                        <tr data-username="{% if entry.connected_user %}{{ entry.connected_user.username|lower }}{% endif %}"
+                                            data-entry-id="{{ entry.id }}"
+                                            data-entry-date="{{ entry.date.isoformat() }}">
                                             <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
                                             <td>{{ entry.description }}</td>
                                             <td>
@@ -183,9 +197,9 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <button class="btn btn-sm btn-outline-secondary edit-entry-btn" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#transactionModal" 
+                                                <button class="btn btn-sm btn-outline-secondary edit-entry-btn"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#transactionModal"
                                                         data-entry-id="{{ entry.id }}">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -214,15 +228,15 @@
     </div>
 
     <!-- Floating Add Button -->
-    <button class="btn btn-primary position-fixed" 
-            style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000;" 
+    <button class="btn btn-primary position-fixed"
+            style="bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; z-index: 1000;"
             id="floatingAddBtn"
-            data-bs-toggle="modal" 
+            data-bs-toggle="modal"
             data-bs-target="#transactionModal"
             data-entry-id="0">
         <i class="fas fa-plus fa-lg"></i>
     </button>
-    
+
     <!-- Add / Edit Transaction Modal -->
     <div class="modal fade" id="transactionModal" tabindex="-1">
         <div class="modal-dialog">
@@ -237,7 +251,7 @@
                     <form id="transactionForm" method="POST" action="{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}">
                         {{ form.hidden_tag() }}
                         {{ form.ledger_id() }}
-                        
+
                         <div class="mb-3">
                             <label class="form-label">{{ form.description.label }}</label>
                             {{ form.description(class="form-control", placeholder="What is this transaction for?") }}
@@ -249,7 +263,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">{{ form.amount.label }}</label>
                             {{ form.amount(class="form-control", placeholder="0.00", step="0.01", min="0.01", id="amountInput") }}
@@ -262,7 +276,7 @@
                             {% endif %}
                         </div>
 
-                        <!-- Date field — always visible for both add and edit -->
+                        <!-- Date field -->
                         <div class="mb-3" id="dateGroup">
                             <label class="form-label">
                                 <i class="fas fa-calendar-alt me-1"></i>Date
@@ -273,35 +287,35 @@
                                    id="entryDateInput"
                                    required>
                         </div>
-                        
+
                         {% if not is_dummy %}
                         <div class="mb-3" id="connectedUserGroup">
                             <label class="form-label">
                                 <i class="fas fa-user me-1"></i>Connected User
                             </label>
-                            
+
                             <div class="btn-group w-100 mb-2" role="group">
                                 <input type="radio" class="btn-check" name="userInputMode" id="selectExisting" checked autocomplete="off">
                                 <label class="btn btn-outline-primary btn-sm" for="selectExisting">
                                     <i class="fas fa-users"></i> Select Existing
                                 </label>
-                                
+
                                 <input type="radio" class="btn-check" name="userInputMode" id="createNew" autocomplete="off">
                                 <label class="btn btn-outline-success btn-sm" for="createNew">
                                     <i class="fas fa-user-plus"></i> Add New User
                                 </label>
                             </div>
-                            
+
                             <div id="existingUserDropdown">
                                 {{ form.connected_user(class="form-select") }}
                             </div>
-                            
+
                             <div id="newUserInput" style="display: none;">
                                 <div class="input-group">
-                                    <input type="text" 
-                                           class="form-control" 
-                                           id="connected_user_input" 
-                                           name="connected_user_input" 
+                                    <input type="text"
+                                           class="form-control"
+                                           id="connected_user_input"
+                                           name="connected_user_input"
                                            placeholder="Enter username for new user"
                                            autocomplete="off">
                                     <span class="input-group-text" id="usernameCheckIcon">
@@ -312,7 +326,7 @@
                                     <i class="fas fa-info-circle"></i> A new account will be created automatically
                                 </small>
                             </div>
-                            
+
                             {% if form.connected_user.errors %}
                                 <div class="text-danger mt-1">
                                     {% for error in form.connected_user.errors %}
@@ -322,7 +336,7 @@
                             {% endif %}
                         </div>
                         {% endif %}
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Transaction Type</label>
                             {{ form.transaction_type(class="form-select") }}
@@ -368,6 +382,7 @@
 {% endif %}
 
 <style>
+/* ── Balance card ── */
 .balance-display {
     font-size: 2.5rem;
     font-weight: bold;
@@ -376,24 +391,23 @@
 .balance-display.positive { color: #198754; }
 .balance-display.negative { color: #dc3545; }
 
+/* ── Transaction colours ── */
 .transaction-credit { color: #198754; font-weight: 600; }
 .transaction-debit  { color: #dc3545; font-weight: 600; }
 
+/* ── Connected-user toggle ── */
 .btn-check:checked + .btn-outline-primary {
-    background-color: #0d6efd;
-    color: white;
+    background-color: #0d6efd; color: white;
 }
 .btn-check:checked + .btn-outline-success {
-    background-color: #198754;
-    color: white;
+    background-color: #198754; color: white;
 }
-
 #newUserInput input {
     border: 2px dashed #198754;
 }
 #newUserInput input:focus {
     border-color: #198754;
-    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(25,135,84,.25);
 }
 #usernameCheckIcon {
     background-color: transparent;
@@ -401,18 +415,152 @@
     border-left: none;
 }
 
-/* Date field highlight */
+/* ── Date input highlight ── */
 #dateGroup .form-control {
     border: 2px solid #0d6efd;
 }
 #dateGroup .form-control:focus {
     border-color: #0d6efd;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
 }
+
+/* ══════════════════════════════════════════════
+   FILTER PANEL
+══════════════════════════════════════════════ */
+/* ── Filter toggle button ── */
+.filter-toggle-btn {
+    font-size: .8125rem;
+    font-weight: 500;
+    padding: .35rem .85rem;
+    border-radius: 20px;
+    background: #e9ecef;
+    border: 1.5px solid #ced4da;
+    color: #495057;
+    transition: all .18s ease;
+}
+.filter-toggle-btn:hover,
+.filter-toggle-btn:focus {
+    background: #dee2e6;
+    border-color: #adb5bd;
+    color: #212529;
+}
+.filter-toggle-btn.active {
+    background: #212529;
+    color: #fff;
+    border-color: #212529;
+}
+
+/* ── Filter panel — dark theme ── */
+.filter-panel {
+    background: #2b2d31;
+    border-top: 1px solid #1a1c1f;
+    padding-top: .75rem !important;
+    padding-bottom: .85rem !important;
+}
+
+.filter-label {
+    display: block;
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #9ba3af;
+    margin-bottom: .3rem;
+}
+
+.filter-input {
+    font-size: .875rem;
+    border: 1.5px solid #3f4349;
+    border-radius: 8px;
+    background: #1e2024;
+    color: #e0e2e6;
+    transition: border-color .15s, box-shadow .15s;
+}
+.filter-input::placeholder { color: #5a6072; }
+.filter-input:focus {
+    background: #1e2024;
+    color: #e0e2e6;
+    border-color: #5b8af5;
+    box-shadow: 0 0 0 3px rgba(91,138,245,.18);
+}
+/* date input calendar icon colour fix on dark bg */
+.filter-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+}
+
+.filter-search-btn {
+    font-size: .8125rem;
+    font-weight: 600;
+    background: #5b8af5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: .45rem .8rem;
+    white-space: nowrap;
+    transition: background .15s, transform .1s;
+}
+.filter-search-btn:hover  { background: #3d6ee8; color: #fff; }
+.filter-search-btn:active { transform: scale(.97); }
+
+.filter-clear-btn {
+    font-size: .8125rem;
+    font-weight: 600;
+    background: #3a3d43;
+    color: #9ba3af;
+    border: 1.5px solid #4a4f57;
+    border-radius: 8px;
+    padding: .45rem .7rem;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.filter-clear-btn:hover {
+    background: #4a1e22;
+    border-color: #f87171;
+    color: #f87171;
+}
+
+/* ── Result chips bar ── */
+#searchInfo.border-top { border-color: #dee2e6 !important; }
+
+.filter-result-text {
+    font-size: .8125rem;
+    font-weight: 600;
+    color: #3d5af1;
+}
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .75rem;
+    font-weight: 500;
+    background: #e8ecfe;
+    color: #3d5af1;
+    border-radius: 20px;
+    padding: .2rem .65rem;
+}
+.filter-chip i { font-size: .65rem; }
+
+.clear-results-btn {
+    font-size: .75rem;
+    color: #6b7a99;
+    border: 1.5px solid #d1d9f0;
+    border-radius: 6px;
+    padding: .2rem .6rem;
+}
+.clear-results-btn:hover {
+    background: #ffeef0;
+    border-color: #f87171;
+    color: #dc2626;
+}
+
+/* Highlight row when search active */
+#transactionTableBody tr.search-match {
+    background: #f0f4ff !important;
+}
+
 @media (max-width: 768px) {
     #floatingAddBtn { display: block !important; }
-    .card-header .row { flex-direction: column; }
-    .card-header .row .col-md-6:last-child { margin-top: 10px; }
+    .filter-toggle-btn { font-size: .75rem; padding: .3rem .7rem; }
 }
 </style>
 
@@ -421,40 +569,47 @@
 document.addEventListener('DOMContentLoaded', function() {
     {% if action != "create" %}
     const ledgerId = {{ ledger.id }};
-    
-    const searchInput      = document.getElementById('userSearchInput');
-    const fromDateInput    = document.getElementById('fromDate');
-    const toDateInput      = document.getElementById('toDate');
-    const clearAllFiltersBtn = document.getElementById('clearAllFilters');
-    const tableBody        = document.getElementById('transactionTableBody');
-    
-    let searchTimeout;
+
+    const searchInput       = document.getElementById('userSearchInput');
+    const fromDateInput     = document.getElementById('fromDate');
+    const toDateInput       = document.getElementById('toDate');
+    const applyFiltersBtn   = document.getElementById('applyFiltersBtn');
+    const clearAllFiltersBtn= document.getElementById('clearAllFilters');
+    const clearSearchBtn    = document.getElementById('clearSearchBtn');
+    const searchInfo        = document.getElementById('searchInfo');
+    const searchResultText  = document.getElementById('searchResultText');
+    const filterTagsEl      = document.getElementById('filterTags');
+    const filterToggleBtn   = document.getElementById('filterToggleBtn');
+    const tableBody         = document.getElementById('transactionTableBody');
+    const searchFiltersEl   = document.getElementById('searchFilters');
+
     let originalTableContent = tableBody ? tableBody.innerHTML : '';
-    
-    // -----------------------------------------------------------------------
-    // Modal references
-    // -----------------------------------------------------------------------
+
+    // ── Toggle button active state ──────────────────────────────────────────
+    if (searchFiltersEl) {
+        searchFiltersEl.addEventListener('shown.bs.collapse',  () => filterToggleBtn.classList.add('active'));
+        searchFiltersEl.addEventListener('hidden.bs.collapse', () => filterToggleBtn.classList.remove('active'));
+    }
+
+    // ── Modal references ────────────────────────────────────────────────────
     const transactionModal = document.getElementById('transactionModal');
     const modalTitle       = document.getElementById('transactionModalTitle');
     const form             = document.getElementById('transactionForm');
     const modalSubmitBtn   = document.getElementById('modalSubmitBtn');
-    const dateGroup        = document.getElementById('dateGroup');
     const entryDateInput   = document.getElementById('entryDateInput');
 
-    const addUrl        = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
-    const editBasePath  = "/ledger/{{ ledger.id }}/edit_entry/";
-    const deleteBasePath= "/ledger/{{ ledger.id }}/delete_entry/";
+    const addUrl         = "{{ url_for('add_ledger_entry', ledger_id=ledger.id) }}";
+    const editBasePath   = "/ledger/{{ ledger.id }}/edit_entry/";
+    const deleteBasePath = "/ledger/{{ ledger.id }}/delete_entry/";
 
-    const selectExistingRadio  = document.getElementById('selectExisting');
-    const createNewRadio       = document.getElementById('createNew');
-    const existingUserDropdown = document.getElementById('existingUserDropdown');
-    const newUserInputDiv      = document.getElementById('newUserInput');
-    const connectedUserSelect  = document.querySelector('[name="connected_user"]');
+    const selectExistingRadio    = document.getElementById('selectExisting');
+    const createNewRadio         = document.getElementById('createNew');
+    const existingUserDropdown   = document.getElementById('existingUserDropdown');
+    const newUserInputDiv        = document.getElementById('newUserInput');
+    const connectedUserSelect    = document.querySelector('[name="connected_user"]');
     const connectedUserInputText = document.getElementById('connected_user_input');
 
-    // -----------------------------------------------------------------------
-    // Toggle existing / new user
-    // -----------------------------------------------------------------------
+    // ── Toggle existing / new user ──────────────────────────────────────────
     if (selectExistingRadio && createNewRadio) {
         selectExistingRadio.addEventListener('change', function() {
             if (this.checked) {
@@ -476,9 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // -----------------------------------------------------------------------
-    // Real-time username check
-    // -----------------------------------------------------------------------
+    // ── Real-time username check ────────────────────────────────────────────
     let usernameCheckTimeout;
     if (connectedUserInputText) {
         connectedUserInputText.addEventListener('input', function() {
@@ -491,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!username) {
                 helpText.className = 'form-text text-muted';
                 helpText.innerHTML = '<i class="fas fa-info-circle"></i> A new account will be created automatically';
-                checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display: none;"></i>';
+                checkIcon.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="display:none;"></i>';
                 return;
             }
             if (spinner) spinner.style.display = 'inline-block';
@@ -529,9 +682,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // -----------------------------------------------------------------------
-    // Add / Edit modal open handler
-    // -----------------------------------------------------------------------
+    // ── Add / Edit modal open handler ───────────────────────────────────────
     if (transactionModal) {
         transactionModal.addEventListener('show.bs.modal', function(event) {
             const button  = event.relatedTarget;
@@ -549,10 +700,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalTitle.innerHTML = '<i class="fas fa-plus me-2"></i>Add New Transaction';
                 form.action = addUrl;
                 modalSubmitBtn.textContent = 'Add Transaction';
-                // Pre-fill today's date for new entries
                 if (entryDateInput) {
-                    const today = new Date().toISOString().split('T')[0];
-                    entryDateInput.value = today;
+                    entryDateInput.value = new Date().toISOString().split('T')[0];
                 }
                 form.querySelector('[name="transaction_type"]').value = 'debit';
                 if (connectedUserSelect) connectedUserSelect.value = '0';
@@ -561,7 +710,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         modalSubmitBtn.addEventListener('click', function() {
-            // Strip leading "+" from amount before submitting
             const amountInput = document.getElementById('amountInput');
             if (amountInput && amountInput.value.startsWith('+')) {
                 amountInput.value = amountInput.value.slice(1);
@@ -571,9 +719,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // -----------------------------------------------------------------------
-    // Fetch entry data for editing (AJAX GET)
-    // -----------------------------------------------------------------------
+    // ── Fetch entry data for editing ────────────────────────────────────────
     function fetchEntryData(entryId) {
         fetch(editBasePath + entryId, { method: 'GET' })
             .then(response => {
@@ -589,7 +735,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     connectedUserSelect.value = data.connected_user;
                 if (data.transaction_type !== undefined)
                     form.querySelector('[name="transaction_type"]').value = data.transaction_type;
-                // Populate date — backend returns "YYYY-MM-DD"
                 if (data.date && entryDateInput)
                     entryDateInput.value = data.date;
             })
@@ -599,9 +744,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // -----------------------------------------------------------------------
-    // Delete modal
-    // -----------------------------------------------------------------------
+    // ── Delete modal ────────────────────────────────────────────────────────
     const deleteModal     = document.getElementById('deleteModal');
     const deleteEntryForm = document.getElementById('deleteEntryForm');
     const deleteEntryDesc = document.getElementById('deleteEntryDesc');
@@ -614,48 +757,112 @@ document.addEventListener('DOMContentLoaded', function() {
         new bootstrap.Modal(deleteModal).show();
     });
 
-    // -----------------------------------------------------------------------
-    // Search & Filter
-    // -----------------------------------------------------------------------
-    function performSearch() {
-        const filters = {
-            username: searchInput ? searchInput.value.trim() : '',
-            fromDate: fromDateInput ? fromDateInput.value : '',
-            toDate:   toDateInput   ? toDateInput.value   : ''
-        };
-        if (!filters.username && !filters.fromDate && !filters.toDate) {
-            showAllTransactions();
-            return;
+    // ══════════════════════════════════════════════════════════════════════════
+    // SEARCH & FILTER — client-side (works on already-rendered rows)
+    //   + server-side API fallback if username filter present
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Run client-side filter on the rendered <tr> rows.
+     * Returns true if at least one row matched.
+     */
+    function clientSideFilter() {
+        if (!tableBody) return false;
+
+        const usernameFilter = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const fromDate = fromDateInput ? fromDateInput.value : '';   // "YYYY-MM-DD"
+        const toDate   = toDateInput   ? toDateInput.value   : '';
+
+        const rows = tableBody.querySelectorAll('tr[data-entry-date]');
+        let matchCount = 0;
+
+        rows.forEach(row => {
+            const rowUsername = (row.getAttribute('data-username') || '').toLowerCase();
+            const rowDate     = row.getAttribute('data-entry-date') || '';   // "YYYY-MM-DD"
+
+            const usernameOk = !usernameFilter || rowUsername.includes(usernameFilter);
+            const fromOk     = !fromDate || rowDate >= fromDate;
+            const toOk       = !toDate   || rowDate <= toDate;
+
+            const visible = usernameOk && fromOk && toOk;
+            row.style.display = visible ? '' : 'none';
+            if (visible) matchCount++;
+        });
+
+        return matchCount;
+    }
+
+    /**
+     * Server-side search — handles all filter combinations including empty username.
+     */
+    function serverSideSearch(username, fromDate, toDate) {
+        // Show loading indicator
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr><td colspan="6" class="text-center py-4 text-muted">
+                    <i class="fas fa-circle-notch fa-spin me-2"></i>Searching…
+                </td></tr>`;
         }
+
         const params = new URLSearchParams();
-        if (filters.username) params.append('username',   filters.username);
-        if (filters.fromDate) params.append('from_date',  filters.fromDate);
-        if (filters.toDate)   params.append('to_date',    filters.toDate);
+        if (username) params.append('username', username);
+        if (fromDate) params.append('from_date', fromDate);
+        if (toDate)   params.append('to_date',   toDate);
 
         fetch(`/ledger/${ledgerId}/search?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    let html = '';
-                    data.results.forEach(userResult => {
-                        userResult.transactions.forEach(tx => {
-                            html += buildTransactionRow(tx, userResult.user);
-                        });
-                    });
-                    tableBody.innerHTML = html || '<tr><td colspan="6" class="text-center">No results</td></tr>';
+                if (!data.success) {
+                    if (tableBody) tableBody.innerHTML =
+                        '<tr><td colspan="6" class="text-center text-danger py-4">Search failed. Please try again.</td></tr>';
+                    return;
                 }
+
+                let html = '';
+                let count = 0;
+                data.results.forEach(userResult => {
+                    userResult.transactions.forEach(tx => {
+                        html += buildTransactionRow(tx, userResult.user);
+                        count++;
+                    });
+                });
+
+                if (tableBody) {
+                    tableBody.innerHTML = html ||
+                        `<tr><td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-search me-2"></i>No transactions match your filters
+                        </td></tr>`;
+                }
+                showSearchInfo(count, username, fromDate, toDate);
+            })
+            .catch(err => {
+                console.error('Search error:', err);
+                if (tableBody) tableBody.innerHTML =
+                    '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-circle me-2"></i>Search error. Please try again.</td></tr>';
             });
     }
 
     function buildTransactionRow(tx, user) {
-        const date = new Date(tx.created_at).toLocaleDateString();
+        // tx.date should be "YYYY-MM-DD"; fall back to created_at if needed
+        let displayDate = tx.date || '';
+        if (!displayDate && tx.created_at) {
+            displayDate = tx.created_at.substring(0, 10);
+        }
+
+        const amtFormatted = Number(tx.amount).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
         return `
-            <tr>
-                <td>${date}</td>
+            <tr data-username="${user ? user.username.toLowerCase() : ''}"
+                data-entry-id="${tx.id}"
+                data-entry-date="${displayDate}">
+                <td>${displayDate}</td>
                 <td>${tx.description}</td>
-                <td><span class="badge bg-info">${user ? user.username : '-'}</span></td>
+                <td>${user ? `<span class="badge bg-info">${user.username}</span>` : '<span class="text-muted">-</span>'}</td>
                 <td class="${tx.is_debit ? 'transaction-debit' : 'transaction-credit'}">
-                    ${tx.is_debit ? '-' : ''}₹${tx.amount.toFixed(2)}
+                    ${tx.is_debit ? '-' : ''}₹${amtFormatted}
                 </td>
                 <td><span class="badge ${tx.is_debit ? 'bg-danger' : 'bg-success'}">${tx.is_debit ? 'Debit' : 'Credit'}</span></td>
                 <td>
@@ -673,17 +880,83 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>`;
     }
 
-    function showAllTransactions() {
-        if (tableBody)     tableBody.innerHTML = originalTableContent;
+    function showSearchInfo(count, username, fromDate, toDate) {
+        if (!searchInfo) return;
+        searchInfo.style.display = 'block';
+        searchResultText.textContent = `${count} result${count !== 1 ? 's' : ''} found`;
+
+        // Build filter chips
+        filterTagsEl.innerHTML = '';
+        if (username) {
+            filterTagsEl.innerHTML += `<span class="filter-chip"><i class="fas fa-user"></i>${username}</span>`;
+        }
+        if (fromDate) {
+            filterTagsEl.innerHTML += `<span class="filter-chip"><i class="fas fa-calendar"></i>From ${fromDate}</span>`;
+        }
+        if (toDate) {
+            filterTagsEl.innerHTML += `<span class="filter-chip"><i class="fas fa-calendar-check"></i>To ${toDate}</span>`;
+        }
+    }
+
+    function hideSearchInfo() {
+        if (searchInfo) searchInfo.style.display = 'none';
+    }
+
+    function clearAllFilters() {
         if (searchInput)   searchInput.value   = '';
         if (fromDateInput) fromDateInput.value  = '';
         if (toDateInput)   toDateInput.value    = '';
     }
 
-    if (searchInput)   searchInput.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(performSearch, 300); });
+    function showAllTransactions() {
+        clearAllFilters();
+        hideSearchInfo();
+        if (tableBody) {
+            tableBody.innerHTML = originalTableContent;
+        }
+    }
+
+    // ── Main performSearch — always goes through server API ─────────────────
+    function performSearch() {
+        const username = searchInput ? searchInput.value.trim() : '';
+        const fromDate = fromDateInput ? fromDateInput.value : '';
+        const toDate   = toDateInput   ? toDateInput.value   : '';
+
+        // Nothing filled in → restore all
+        if (!username && !fromDate && !toDate) {
+            showAllTransactions();
+            return;
+        }
+
+        // Always use server-side so empty username + dates still filters correctly
+        serverSideSearch(username, fromDate, toDate);
+    }
+
+    // ── Event wiring ────────────────────────────────────────────────────────
+
+    // Search button click
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', performSearch);
+    }
+
+    // Enter key in username / date inputs
+    [searchInput, fromDateInput, toDateInput].forEach(el => {
+        if (!el) return;
+        el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    });
+
+    // Date inputs: auto-search on change
     if (fromDateInput) fromDateInput.addEventListener('change', performSearch);
     if (toDateInput)   toDateInput.addEventListener('change', performSearch);
+
+    // Clear buttons
     if (clearAllFiltersBtn) clearAllFiltersBtn.addEventListener('click', showAllTransactions);
+    if (clearSearchBtn)     clearSearchBtn.addEventListener('click', showAllTransactions);
 
     {% endif %}
 });

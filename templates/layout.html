@@ -89,12 +89,6 @@
                     {% endif %}
                     
                     <ul class="navbar-nav ms-auto">
-                        <!-- <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('profile') }}">
-                                <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
-                            </a>
-                        </li> -->
-
                         <li class="nav-item">
                             {% if current_user.is_authenticated %}
                                 {% if current_user.is_admin %}
@@ -144,25 +138,10 @@
     
     <footer class="bg-dark text-light py-4 mt-5">
         <div class="container text-center">
-            <!-- {% if current_user.is_authenticated %}
-                {% if current_user.using_dummy %}
-                    <div class="data-view-indicator bg-dark">
-                        <span id="dataViewText"><i class="fas fa-moon"></i></span>
-                        <input type="hidden" id="dataViewStatus" value="true">
-                    </div>
-                {% else %}
-                    <div class="data-view-indicator bg-light text-dark">
-                        <span id="dataViewText"><i class="fas fa-sun"></i></span>
-                        <input type="hidden" id="dataViewStatus" value="false">
-                    </div>
-                {% endif %}
-            {% endif %}             -->
             <p>&copy; 2025 SecureTally. All rights reserved.</p>
-            <p class="small">A secure tally app made with ❤️  </p>
-            
+            <p class="small">A secure tally app made with ❤️</p>
         </div>
     </footer>
-    
     
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -173,88 +152,67 @@
     <script>
         (function() {
             'use strict';
-            
-            // Prevent page caching - handle back button
+
+            // ── Back/forward cache: do NOT reload, just let the cached page show.
+            // Only redirect to login if the server says the session is gone.
             window.addEventListener('pageshow', function(event) {
                 if (event.persisted) {
-                    // Page was loaded from cache (back/forward button)
-                    checkAuthAndReload();
+                    // Page restored from bfcache — silently verify session.
+                    // Do NOT call window.location.reload() here; that caused the loop.
+                    fetch('/check-auth', { method: 'GET', credentials: 'same-origin' })
+                        .then(function(response) {
+                            if (response.status === 401) {
+                                handleUnauthenticated();
+                            }
+                            // If auth is fine, do nothing — bfcache page is fine to show.
+                        })
+                        .catch(function() {
+                            // Network error — don't boot them, just let the page sit.
+                        });
                 }
             });
-            
-            // Check authentication on page load
+
+            // ── Single auth check on initial page load only.
+            // Removed startPeriodicCheck — it was firing every 30 s and any
+            // non-200 response (slow server, network blip) triggered a login redirect.
             document.addEventListener('DOMContentLoaded', function() {
                 checkAuthentication();
-                startPeriodicCheck();
             });
-            
+
             function checkAuthentication() {
-                fetch('/check-auth', { 
-                    method: 'GET',
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    if (!response.ok || response.status === 401) {
-                        handleUnauthenticated();
-                    }
-                })
-                .catch(() => {
-                    handleUnauthenticated();
-                });
+                fetch('/check-auth', { method: 'GET', credentials: 'same-origin' })
+                    .then(function(response) {
+                        if (response.status === 401) {
+                            handleUnauthenticated();
+                        }
+                        // Any other status (200, 5xx, etc.) — leave the page alone.
+                    })
+                    .catch(function() {
+                        // Network error — don't redirect, user may just be offline briefly.
+                    });
             }
-            
-            function checkAuthAndReload() {
-                fetch('/check-auth', { 
-                    method: 'GET',
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    if (!response.ok || response.status === 401) {
-                        handleUnauthenticated();
-                    } else {
-                        // Force reload to get fresh data
-                        window.location.reload();
-                    }
-                })
-                .catch(() => {
-                    handleUnauthenticated();
-                });
-            }
-            
+
             function handleUnauthenticated() {
-                // Clear any client-side storage
                 sessionStorage.clear();
                 localStorage.clear();
-                
-                // Redirect to login page
                 window.location.replace('/login');
             }
-            
-            function startPeriodicCheck() {
-                // Check authentication every 30 seconds
-                setInterval(checkAuthentication, 30000);
-            }
-            
-            // Handle logout (if you have a logout button)
+
+            // Kept as a global in case other scripts call it.
             window.handleLogout = function() {
-                fetch('/logout', { 
-                    method: 'POST',
-                    credentials: 'same-origin'
-                })
-                .then(() => {
-                    sessionStorage.clear();
-                    localStorage.clear();
-                    window.location.replace('/login');
-                })
-                .catch(() => {
-                    // Even if logout fails, redirect to login
-                    window.location.replace('/login');
-                });
+                fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+                    .then(function() {
+                        sessionStorage.clear();
+                        localStorage.clear();
+                        window.location.replace('/login');
+                    })
+                    .catch(function() {
+                        window.location.replace('/login');
+                    });
             };
         })();
     </script>
 
-    
     {% block scripts %}{% endblock %}
 </body>
 </html>

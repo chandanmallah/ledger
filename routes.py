@@ -60,15 +60,38 @@ def index():
 def bike_race_game():
     return render_template("modern_bike_race.html", title="Bike Race Game")
 
+# @app.route('/check-auth')
+# def check_auth():
+#     if current_user.is_authenticated:
+#         if current_user.is_admin:
+#             return redirect(url_for('admin_dashboard'))
+#         else:
+#             return redirect(url_for('user_dashboard'))
+#     return redirect(url_for('main_page'))
+
+
 @app.route('/check-auth')
 def check_auth():
     if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for('admin_dashboard'))
-        else:
-            return redirect(url_for('user_dashboard'))
-    return redirect(url_for('main_page'))
+        return jsonify({'authenticated': True, 'username': current_user.username}), 200
+    return jsonify({'authenticated': False}), 401
 
+
+
+@app.route('/ledger/<int:ledger_id>/soft_delete', methods=['POST'])
+@login_required
+def soft_delete_ledger(ledger_id):
+    is_dummy = is_using_dummy()
+    ledger = Ledger.query.get_or_404(ledger_id)
+
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    ledger.is_active = False
+    db.session.commit()
+
+    return jsonify({'success': True, 'ledger_id': ledger_id})
+    
 # Decorator to ensure only admins can access certain routes
 def admin_required(f):
     @wraps(f)
@@ -318,52 +341,153 @@ def toggle_user(user_id):
     return redirect(url_for('manage_users'))
 
 
-
+# 2. Dashboard — passes both active ledgers AND binned ledgers
 @app.route('/dashboard')
 @login_required
 def user_dashboard():
     is_dummy = is_using_dummy()
 
-    page = request.args.get('page', 1, type=int)
-    ledgers_pagination = Ledger.query.filter_by(
-        user_id=current_user.id, 
-        is_dummy=is_dummy
-    ).paginate(page=page, per_page=9)
-    
-    # Calculate total balance (This part remains the same, it should be calculated across all ledgers, not just the paginated ones)
+    all_ledgers = Ledger.query.filter_by(
+        user_id=current_user.id,
+        is_dummy=is_dummy,
+        is_active=True
+    ).all()
+
+    binned_ledgers = Ledger.query.filter_by(
+        user_id=current_user.id,
+        is_dummy=is_dummy,
+        is_active=False
+    ).all()
+
     total_balance = 0
-    all_ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
     for ledger in all_ledgers:
         for entry in ledger.entries:
-            if entry.is_debit:
-                total_balance -= entry.amount
-            else:
-                total_balance += entry.amount
-    
-    # Get connection requests only in real mode
-    if is_dummy:
-        pending_requests = []
-    else:
-        pending_requests = Connection.query.filter_by(
-            connected_user_id=current_user.id, 
-            status='pending'
-        ).all()
-    
-    # Get recent transactions (This part remains the same)
+            total_balance += (-entry.amount if entry.is_debit else entry.amount)
+
+    pending_requests = [] if is_dummy else Connection.query.filter_by(
+        connected_user_id=current_user.id,
+        status='pending'
+    ).all()
+
     recent_transactions = LedgerEntry.query.join(Ledger).filter(
         Ledger.user_id == current_user.id,
-        Ledger.is_dummy == is_dummy
+        Ledger.is_dummy == is_dummy,
+        Ledger.is_active == True
     ).order_by(LedgerEntry.date.desc()).limit(5).all()
-    
-    # Pass the pagination object and the total list of ledgers to the template
+
     return render_template('user/dashboard.html',
                            title='Dashboard',
-                           ledgers=all_ledgers, # Pass the full list to show the count
-                           ledgers_pagination=ledgers_pagination, # Pass the paginated object to display
+                           ledgers=all_ledgers,
+                           binned_ledgers=binned_ledgers,
                            total_balance=total_balance,
                            pending_requests=pending_requests,
                            recent_transactions=recent_transactions,
                            is_dummy=is_dummy)
+
+
+
+
+# 4. Restore from bin
+@app.route('/ledger/<int:ledger_id>/restore', methods=['POST'])
+@login_required
+def restore_ledger(ledger_id):
+    is_dummy = is_using_dummy()
+    ledger = Ledger.query.get_or_404(ledger_id)
+
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    # Check if a ledger with the same name was created while this was in the bin
+    name_conflict = Ledger.query.filter(
+        Ledger.user_id == current_user.id,
+        Ledger.is_dummy == is_dummy,
+        Ledger.is_active == True,
+        Ledger.id != ledger_id,
+        db.func.lower(Ledger.name) == ledger.name.lower()
+    ).first()
+
+    if name_conflict:
+        return jsonify({
+            'success': False,
+            'error': f'A ledger named "{ledger.name}" already exists. Rename it before restoring.'
+        }), 409
+
+    ledger.is_active = True
+    db.session.commit()
+    return jsonify({'success': True, 'ledger_id': ledger_id, 'ledger_name': ledger.name})
+
+
+# 5. Permanent delete (removes from DB entirely, including all entries)
+@app.route('/ledger/<int:ledger_id>/permanent_delete', methods=['POST'])
+@login_required
+def permanent_delete_ledger(ledger_id):
+    is_dummy = is_using_dummy()
+    ledger = Ledger.query.get_or_404(ledger_id)
+
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    # Only allow permanent delete if already in bin
+    if ledger.is_active:
+        return jsonify({'success': False, 'error': 'Move to bin first before permanently deleting.'}), 400
+
+    # Null out connected_entry_id on any entries that reference this ledger's entries,
+    # to avoid FK constraint errors before cascade delete
+    entry_ids = [e.id for e in ledger.entries]
+    if entry_ids:
+        LedgerEntry.query.filter(
+            LedgerEntry.connected_entry_id.in_(entry_ids)
+        ).update({'connected_entry_id': None}, synchronize_session=False)
+        db.session.flush()
+
+    db.session.delete(ledger)  # cascade="all, delete-orphan" removes entries too
+    db.session.commit()
+    return jsonify({'success': True, 'ledger_id': ledger_id})
+# @app.route('/dashboard')
+# @login_required
+# def user_dashboard():
+#     is_dummy = is_using_dummy()
+
+#     page = request.args.get('page', 1, type=int)
+#     ledgers_pagination = Ledger.query.filter_by(
+#         user_id=current_user.id, 
+#         is_dummy=is_dummy
+#     ).paginate(page=page, per_page=9)
+    
+#     # Calculate total balance (This part remains the same, it should be calculated across all ledgers, not just the paginated ones)
+#     total_balance = 0
+#     all_ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_dummy).all()
+#     for ledger in all_ledgers:
+#         for entry in ledger.entries:
+#             if entry.is_debit:
+#                 total_balance -= entry.amount
+#             else:
+#                 total_balance += entry.amount
+    
+#     # Get connection requests only in real mode
+#     if is_dummy:
+#         pending_requests = []
+#     else:
+#         pending_requests = Connection.query.filter_by(
+#             connected_user_id=current_user.id, 
+#             status='pending'
+#         ).all()
+    
+#     # Get recent transactions (This part remains the same)
+#     recent_transactions = LedgerEntry.query.join(Ledger).filter(
+#         Ledger.user_id == current_user.id,
+#         Ledger.is_dummy == is_dummy
+#     ).order_by(LedgerEntry.date.desc()).limit(5).all()
+    
+#     # Pass the pagination object and the total list of ledgers to the template
+#     return render_template('user/dashboard.html',
+#                            title='Dashboard',
+#                            ledgers=all_ledgers, # Pass the full list to show the count
+#                            ledgers_pagination=ledgers_pagination, # Pass the paginated object to display
+#                            total_balance=total_balance,
+#                            pending_requests=pending_requests,
+#                            recent_transactions=recent_transactions,
+#                            is_dummy=is_dummy)
 
 @app.route('/get_ledgers/<int:page>')
 @login_required
@@ -385,37 +509,85 @@ def get_ledgers(page):
 def create_ledger():
     is_dummy = is_using_dummy()
     form = LedgerForm()
-    
+
     if form.validate_on_submit():
+        new_name = form.name.data.strip()
+
+        # Case-insensitive duplicate check (only among active ledgers)
+        existing = Ledger.query.filter(
+            Ledger.user_id == current_user.id,
+            Ledger.is_dummy == is_dummy,
+            Ledger.is_active == True,
+            db.func.lower(Ledger.name) == new_name.lower()
+        ).first()
+
+        if existing:
+            flash(f'You already have a ledger named "{new_name}". Please choose a different name.', 'warning')
+            return render_template('user/ledger.html',
+                                   title='Create Ledger',
+                                   form=form,
+                                   is_dummy=is_dummy,
+                                   action="create")
+
         ledger = Ledger(
-            name=form.name.data,
+            name=new_name,
             description=form.description.data,
             is_dummy=is_dummy,
-            user_id=current_user.id
+            user_id=current_user.id,
+            is_active=True
         )
         db.session.add(ledger)
         db.session.commit()
-        
+
         flash('Ledger created successfully!', 'success')
         return redirect(url_for('view_ledger', ledger_id=ledger.id))
-    
-    return render_template('user/ledger.html', 
-                          title='Create Ledger',
-                          form=form,
-                          is_dummy=is_dummy,
-                          action="create")
+
+    return render_template('user/ledger.html',
+                           title='Create Ledger',
+                           form=form,
+                           is_dummy=is_dummy,
+                           action="create")
 
 
+
+# @app.route('/ledger/<int:ledger_id>')
+# @login_required
+# def view_ledger(ledger_id):
+#     is_dummy = is_using_dummy()
+#     ledger = Ledger.query.get_or_404(ledger_id)
+
+#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or not ledger.is_active:
+#         abort(403)
+
+#     form = LedgerEntryForm()
+#     form.ledger_id.data = ledger_id
+
+#     connections = User.query.join(Connection, or_(
+#         and_(Connection.user_id == current_user.id,
+#              Connection.connected_user_id == User.id),
+#         and_(Connection.connected_user_id == current_user.id,
+#              Connection.user_id == User.id)
+#     )).filter(Connection.status == 'accepted').all()
+
+#     form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
+
+#     all_entries = LedgerEntry.query.filter(
+#         LedgerEntry.ledger_id == ledger.id
+#     ).order_by(LedgerEntry.date.desc()).all()
+
+#     current_balance = sum(
+#         (-e.amount if e.is_debit else e.amount)
+#         for e in all_entries
+#     )
 
 @app.route('/ledger/<int:ledger_id>')
 @login_required
 def view_ledger(ledger_id):
     is_dummy = is_using_dummy()
     ledger = Ledger.query.get_or_404(ledger_id)
-    print(ledger)
 
     # Security check
-    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy:
+    if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or not ledger.is_active:
         abort(403)
 
     form = LedgerEntryForm()
@@ -1065,46 +1237,41 @@ def add_ledger_entry(ledger_id):
 #     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 
-
 @app.route('/user_summary')
 @login_required
 def user_summary():
     username = request.args.get('username', '').strip()
-    print(username)
     selected_ledger_id = request.args.get('ledger_id', type=int)
-    
+
     user_data = None
+    ledger_summary = None  # used when no username but ledger is selected
+
     all_connected_users = User.query.join(Connection, or_(
         and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
         and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
     )).filter(Connection.status == 'accepted').all()
 
     if username:
-        # 1. Find the target user
+        # ── Existing: filter by username (+ optional ledger) ──────────────
         target_user = User.query.filter_by(username=username).first()
-        
+
         if target_user:
-            # 2. Verify they are actually connected to you
             is_connected = any(u.id == target_user.id for u in all_connected_users)
-            
+
             if is_connected:
-                # 3. Build the query for transactions
                 query = LedgerEntry.query.join(Ledger).filter(
                     Ledger.user_id == current_user.id,
                     LedgerEntry.connected_user_id == target_user.id
                 )
-                
-                # Filter by specific ledger if requested, otherwise show all
                 if selected_ledger_id:
                     query = query.filter(LedgerEntry.ledger_id == selected_ledger_id)
-                
+
                 transactions = query.order_by(LedgerEntry.date.desc()).all()
-                
-                # 4. Calculate Totals
-                total_debit = sum(t.amount for t in transactions if t.is_debit)
+
+                total_debit  = sum(t.amount for t in transactions if t.is_debit)
                 total_credit = sum(t.amount for t in transactions if not t.is_debit)
-                net_balance = total_credit - total_debit
-                
+                net_balance  = total_credit - total_debit
+
                 user_data = {
                     'user': target_user,
                     'transactions': transactions,
@@ -1118,16 +1285,41 @@ def user_summary():
         else:
             flash(f"User {username} not found.", "danger")
 
-    # Get list of your ledgers for the dropdown filter
-    user_ledgers = Ledger.query.filter_by(user_id=current_user.id, is_dummy=is_using_dummy()).all()
-    
-    return render_template('user_summary.html', 
-                           user_data=user_data, 
+    elif selected_ledger_id:
+        # ── New: no username, but a ledger is selected ────────────────────
+        # Show ALL transactions in that ledger, grouped by connected user
+        ledger = Ledger.query.filter_by(id=selected_ledger_id, user_id=current_user.id).first()
+
+        if ledger:
+            transactions = LedgerEntry.query.filter_by(
+                ledger_id=selected_ledger_id
+            ).order_by(LedgerEntry.date.desc()).all()
+
+            total_debit  = sum(t.amount for t in transactions if t.is_debit)
+            total_credit = sum(t.amount for t in transactions if not t.is_debit)
+            net_balance  = total_credit - total_debit
+
+            ledger_summary = {
+                'ledger': ledger,
+                'transactions': transactions,
+                'total_debit': total_debit,
+                'total_credit': total_credit,
+                'net_balance': net_balance,
+            }
+        else:
+            flash("Ledger not found.", "danger")
+
+    user_ledgers = Ledger.query.filter_by(
+        user_id=current_user.id, is_dummy=is_using_dummy()
+    ).all()
+
+    return render_template('user_summary.html',
+                           user_data=user_data,
+                           ledger_summary=ledger_summary,
                            all_connected_users=all_connected_users,
                            user_ledgers=user_ledgers,
                            selected_ledger_id=selected_ledger_id,
                            search_query=username)
-
 
 @app.route('/ledger/<int:ledger_id>/edit_entry/<int:entry_id>', methods=['GET', 'POST'])
 @login_required
@@ -1265,142 +1457,6 @@ def edit_ledger_entry(ledger_id, entry_id):
                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
 
     return redirect(url_for('view_ledger', ledger_id=ledger_id))
-
-# @app.route('/ledger/<int:ledger_id>/edit_entry/<int:entry_id>', methods=['GET', 'POST'])
-# @login_required
-# def edit_ledger_entry(ledger_id, entry_id):
-#     is_dummy = is_using_dummy()
-
-#     ledger = Ledger.query.get_or_404(ledger_id)
-#     entry = LedgerEntry.query.get_or_404(entry_id)
-
-#     # Security Check
-#     if ledger.user_id != current_user.id or ledger.is_dummy != is_dummy or entry.ledger_id != ledger_id:
-#         abort(403)
-
-#     if not is_dummy and entry.connected_entry_id is not None and entry.description.lower().startswith("from "):
-#         abort(403)
-
-#     is_ajax_get = (request.method == 'GET' and
-#                    (request.accept_mimetypes.accept_json or
-#                     request.is_json or
-#                     request.headers.get('X-Requested-With') == 'XMLHttpRequest'))
-
-#     if is_ajax_get:
-#         transaction_type_value = 'debit' if entry.is_debit else 'credit'
-#         connected_user_id_str = str(entry.connected_user_id) if entry.connected_user_id is not None else '0'
-
-#         data_for_modal = {
-#             'entry_id': entry.id,
-#             'description': entry.description,
-#             'amount': float(entry.amount),
-#             'connected_user': connected_user_id_str,
-#             'transaction_type': transaction_type_value,
-#             # Format for <input type="datetime-local"> — "YYYY-MM-DDTHH:MM"
-#             'date': entry.date.strftime('%Y-%m-%dT%H:%M'),
-#             'success': True
-#         }
-#         return jsonify(data_for_modal)
-
-#     form = LedgerEntryForm(obj=entry)
-
-#     # Helper: parse and apply the submitted date, or keep original
-#     def apply_entry_date(target_entry):
-#         entry_date_str = request.form.get('entry_date', '').strip()
-#         if entry_date_str:
-#             try:
-#                 from datetime import datetime as dt
-#                 target_entry.date = dt.strptime(entry_date_str, '%Y-%m-%dT%H:%M')
-#             except ValueError:
-#                 pass  # Keep original date if format is wrong
-
-#     if is_dummy:
-#         if form.validate_on_submit():
-#             entry.description = form.description.data
-#             entry.amount = form.amount.data
-#             entry.is_debit = form.transaction_type.data == 'debit'
-#             apply_entry_date(entry)  # <-- save date
-
-#             db.session.commit()
-#             flash('Dummy ledger entry updated successfully!', 'success')
-#             return redirect(url_for('view_ledger', ledger_id=ledger_id))
-
-#     else:
-#         connections = User.query.join(Connection, or_(
-#             and_(Connection.user_id == current_user.id, Connection.connected_user_id == User.id),
-#             and_(Connection.connected_user_id == current_user.id, Connection.user_id == User.id)
-#         )).filter(Connection.status == 'accepted').all()
-#         connection_user_ids = [u.id for u in connections]
-#         form.connected_user.choices = [(0, 'Select a user')] + [(u.id, u.username) for u in connections]
-
-#         if request.method == 'GET':
-#             form.connected_user.data = entry.connected_user_id if entry.connected_user_id else 0
-#             form.transaction_type.data = 'debit' if entry.is_debit else 'credit'
-
-#         if form.validate_on_submit():
-#             new_connected_user_id = form.connected_user.data
-#             old_connected_entry_id = entry.connected_entry_id
-
-#             if new_connected_user_id != 0 and new_connected_user_id not in connection_user_ids:
-#                 flash('Invalid connected user selected.', 'danger')
-#                 return redirect(url_for('edit_ledger_entry', ledger_id=ledger_id, entry_id=entry_id))
-
-#             # Delete old mirror if connection changed or removed
-#             if old_connected_entry_id and (new_connected_user_id == 0 or entry.connected_user_id != new_connected_user_id):
-#                 old_mirror = LedgerEntry.query.get(old_connected_entry_id)
-#                 if old_mirror:
-#                     db.session.delete(old_mirror)
-#                     entry.connected_entry_id = None
-
-#             # Update current entry
-#             is_debit = form.transaction_type.data == 'debit'
-#             entry.description = form.description.data
-#             entry.amount = form.amount.data
-#             entry.is_debit = is_debit
-#             entry.connected_user_id = new_connected_user_id if new_connected_user_id != 0 else None
-#             apply_entry_date(entry)  # <-- save date on main entry
-
-#             # Handle mirror entry create/update
-#             if new_connected_user_id != 0:
-#                 connected_user_ledger = Ledger.query.filter_by(
-#                     user_id=new_connected_user_id,
-#                     is_dummy=is_dummy,
-#                     name="Personal Account"
-#                 ).first()
-
-#                 if connected_user_ledger:
-#                     if entry.connected_entry_id:
-#                         mirror_entry = LedgerEntry.query.get(entry.connected_entry_id)
-#                         if mirror_entry:
-#                             mirror_entry.description = f"From {current_user.username}: {form.description.data}"
-#                             mirror_entry.amount = form.amount.data
-#                             mirror_entry.is_debit = not is_debit
-#                             mirror_entry.connected_user_id = current_user.id
-#                             mirror_entry.date = entry.date  # <-- sync date to mirror
-#                     else:
-#                         mirror_entry = LedgerEntry(
-#                             description=f"From {current_user.username}: {form.description.data}",
-#                             amount=form.amount.data,
-#                             is_debit=not is_debit,
-#                             ledger_id=connected_user_ledger.id,
-#                             connected_user_id=current_user.id,
-#                             connected_entry_id=entry.id,
-#                             date=entry.date  # <-- new mirror gets same date
-#                         )
-#                         db.session.add(mirror_entry)
-#                         db.session.flush()
-#                         entry.connected_entry_id = mirror_entry.id
-
-#             db.session.commit()
-#             flash('Ledger entry updated successfully!', 'success')
-#             return redirect(url_for('view_ledger', ledger_id=ledger_id))
-
-#         elif request.method == 'POST':
-#             for field, errors in form.errors.items():
-#                 for error in errors:
-#                     flash(f'{getattr(form, field).label.text}: {error}', 'danger')
-
-#     return redirect(url_for('view_ledger', ledger_id=ledger_id))
 
 
 from sqlalchemy import func

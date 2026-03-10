@@ -39,6 +39,7 @@ class Ledger(db.Model):
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
+    
     entries = db.relationship('LedgerEntry', backref='ledger', lazy=True, cascade="all, delete-orphan")
 
 
