@@ -91,8 +91,7 @@ def soft_delete_ledger(ledger_id):
     db.session.commit()
 
     return jsonify({'success': True, 'ledger_id': ledger_id})
-    
-# Decorator to ensure only admins can access certain routes
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -504,6 +503,7 @@ def get_ledgers(page):
     # Render a partial template and return the HTML
     return render_template('user/ledger_list_partial.html', ledgers_pagination=ledgers_pagination)
 
+
 @app.route('/ledger/create', methods=['GET', 'POST'])
 @login_required
 def create_ledger():
@@ -513,7 +513,6 @@ def create_ledger():
     if form.validate_on_submit():
         new_name = form.name.data.strip()
 
-        # Case-insensitive duplicate check (only among active ledgers)
         existing = Ledger.query.filter(
             Ledger.user_id == current_user.id,
             Ledger.is_dummy == is_dummy,
@@ -547,6 +546,65 @@ def create_ledger():
                            form=form,
                            is_dummy=is_dummy,
                            action="create")
+
+
+@app.route('/ledger/create_ajax', methods=['POST'])
+@login_required
+def create_ledger_ajax():
+    is_dummy = is_using_dummy()
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid request'}), 400
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Ledger name is required.'})
+
+    if len(name) > 100:
+        return jsonify({'success': False, 'error': 'Name must be 100 characters or fewer.'})
+
+    existing = Ledger.query.filter(
+        Ledger.user_id == current_user.id,
+        Ledger.is_dummy == is_dummy,
+        Ledger.is_active == True,
+        db.func.lower(Ledger.name) == name.lower()
+    ).first()
+
+    if existing:
+        return jsonify({'success': False, 'error': f'You already have a ledger named "{name}". Please choose a different name.'})
+
+    ledger = Ledger(
+        name=name,
+        description=description or None,
+        is_dummy=is_dummy,
+        user_id=current_user.id,
+        is_active=True
+    )
+    db.session.add(ledger)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'ledger_id': ledger.id,
+        'ledger_name': ledger.name
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
